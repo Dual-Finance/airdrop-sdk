@@ -451,7 +451,7 @@ export class Airdrop {
 
     const merkleClaimIx: TransactionInstruction = await this.airdropProgram.methods.claim(
       amount,
-      verificationData
+      verificationData,
     )
       .accounts({
         authority,
@@ -535,7 +535,7 @@ export class Airdrop {
           isWritable: false,
           isSigner: false,
         },
-      ]).instruction()
+      ]).instruction();
 
     transaction.add(governanceClaimIx);
 
