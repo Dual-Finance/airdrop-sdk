@@ -458,7 +458,20 @@ export class Airdrop {
         verifierProgram: MERKLE_VERIFIER_PK,
         verifierState,
         tokenProgram: TOKEN_PROGRAM_ID,
-      }).instruction();
+      })
+      .remainingAccounts([
+        {
+          pubkey: receipt,
+          isWritable: true,
+          isSigner: false,
+        },
+        {
+          pubkey: web3.SystemProgram.programId,
+          isWritable: false,
+          isSigner: false,
+        },
+      ])
+      .instruction();
 
     transaction.add(merkleClaimIx);
 
