@@ -414,20 +414,17 @@ export class Airdrop {
     airdropState: PublicKey,
     recipient: PublicKey,
     recipientTokenAccount: PublicKey,
-    amount: BN,
-    index: number,
     amountsByRecipient: [{account: PublicKey, amount: BN}],
     authority: PublicKey,
     verifierState: PublicKey,
   ): Promise<web3.Transaction> {
     const transaction: Transaction = new Transaction();
-
-    // TODO: Lookup the index so the caller doesnt have to.
-    // TODO: Lookup the amount so the caller doesnt have to.
-
     const vault = this.getVaultAddress(airdropState);
-
     const tree = new BalanceTree(amountsByRecipient);
+
+    const index = amountsByRecipient.findIndex((element) => { element.account === recipient; });
+    const amount = amountsByRecipient[index].amount;
+
     const proofStrings: Buffer[] = tree.getProof(index, recipient, amount);
     const proofBytes: number[][] = proofStrings.map((p) => toBytes32Array(p));
 
@@ -484,6 +481,8 @@ export class Airdrop {
     const transaction: Transaction = new Transaction();
 
     // TODO: Lookup the governance, voteRecord, and proposal for the user.
+    // Governance is on the state
+    // Search through all the proposals and all the voteRecords for one that matches
 
     const vault = this.getVaultAddress(airdropState);
 
