@@ -542,5 +542,5 @@ export class Airdrop {
     return transaction;
   }
 
-  // TODO: Send to clockwork
+  // TODO: Send to clockwork.
 }
