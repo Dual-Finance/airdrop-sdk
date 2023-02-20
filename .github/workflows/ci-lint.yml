@@ -1,0 +1,22 @@
+name: Lint
+on:
+  push:
+
+env:
+  CARGO_TERM_COLOR: always
+
+defaults:
+  run:
+    working-directory: ./
+
+jobs:
+  lint:
+    name: Lint
+    runs-on: ubuntu-latest
+
+    steps:
+      - uses: actions/checkout@v2
+      - name: Install eslint
+        run: yarn install
+      - name: Run ESLint
+        run: yarn lint

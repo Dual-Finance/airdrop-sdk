@@ -1,0 +1,4 @@
+.viminfo
+lib
+node_modules
+yarn.lock

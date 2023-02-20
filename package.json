@@ -1,0 +1,36 @@
+{
+  "name": "@dual-finance/airdrop",
+  "version": "0.0.1",
+  "description": "Airdrop SDK",
+  "main": "lib/index.js",
+  "author": "Dual Finance",
+  "license": "ISC",
+  "types": "lib/index.d.ts",
+  "homepage": "https://github.com/DualFinance/airdrop-sdk",
+  "publishConfig": {
+    "access": "public"
+  },
+  "scripts": {
+    "build": "tsc",
+    "prebuild": "yarn clean",
+    "clean": "rimraf lib",
+    "lint": "eslint --ext .ts src",
+    "lint:fix": "eslint --ext .ts --fix src"
+  },
+  "dependencies": {
+    "@coral-xyz/anchor": "^0.26.0",
+    "@dual-finance/staking-options": "^0.0.17",
+    "@solana/spl-token": "^0.3.6",
+    "@solana/web3.js": "^1.73.2",
+    "js-sha3": "^0.8.0"
+  },
+  "devDependencies": {
+    "@typescript-eslint/eslint-plugin": "^5.27.1",
+    "@typescript-eslint/parser": "^5.27.1",
+    "eslint": "^7.32.0 || ^8.2.0",
+    "eslint-config-airbnb-base": "^15.0.0",
+    "eslint-plugin-import": "^2.25.2",
+    "rimraf": "^3.0.2",
+    "typescript": "^4.3.5"
+  }
+}

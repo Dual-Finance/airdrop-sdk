@@ -1,0 +1,39 @@
+{
+  "version": "0.1.0",
+  "name": "basic_verifier",
+  "instructions": [
+    {
+      "name": "verify",
+      "accounts": [
+        {
+          "name": "authority",
+          "isMut": false,
+          "isSigner": true
+        },
+        {
+          "name": "unusedVerificationState",
+          "isMut": false,
+          "isSigner": false
+        },
+        {
+          "name": "unusedRecipient",
+          "isMut": false,
+          "isSigner": false
+        }
+      ],
+      "args": [
+        {
+          "name": "amount",
+          "type": "u64"
+        },
+        {
+          "name": "verificationData",
+          "type": "bytes"
+        }
+      ]
+    }
+  ],
+  "metadata": {
+    "address": "FEdxZUg4BtWvMy7gy7pXEoj1isqBRYmbYdpyZfq5QZYr"
+  }
+}

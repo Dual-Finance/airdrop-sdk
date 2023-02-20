@@ -1,0 +1,224 @@
+{
+  "version": "0.1.0",
+  "name": "airdrop",
+  "instructions": [
+    {
+      "name": "configure",
+      "accounts": [
+        {
+          "name": "payer",
+          "isMut": true,
+          "isSigner": true
+        },
+        {
+          "name": "state",
+          "isMut": true,
+          "isSigner": true
+        },
+        {
+          "name": "vault",
+          "isMut": true,
+          "isSigner": false,
+          "docs": [
+            "Expects the caller to fill it after configure."
+          ]
+        },
+        {
+          "name": "mint",
+          "isMut": false,
+          "isSigner": false
+        },
+        {
+          "name": "verifierProgram",
+          "isMut": false,
+          "isSigner": false
+        },
+        {
+          "name": "verifierState",
+          "isMut": false,
+          "isSigner": false
+        },
+        {
+          "name": "tokenProgram",
+          "isMut": false,
+          "isSigner": false
+        },
+        {
+          "name": "systemProgram",
+          "isMut": false,
+          "isSigner": false
+        },
+        {
+          "name": "rent",
+          "isMut": false,
+          "isSigner": false
+        }
+      ],
+      "args": [
+        {
+          "name": "verifierInstructionPrefix",
+          "type": {
+            "array": [
+              "u8",
+              8
+            ]
+          }
+        }
+      ]
+    },
+    {
+      "name": "claim",
+      "accounts": [
+        {
+          "name": "authority",
+          "isMut": true,
+          "isSigner": true,
+          "docs": [
+            "Mutable because might need to pay rent in verifier."
+          ]
+        },
+        {
+          "name": "state",
+          "isMut": false,
+          "isSigner": false
+        },
+        {
+          "name": "vault",
+          "isMut": true,
+          "isSigner": false,
+          "docs": [
+            "Expected to already be filled."
+          ]
+        },
+        {
+          "name": "recipient",
+          "isMut": true,
+          "isSigner": false
+        },
+        {
+          "name": "verifierProgram",
+          "isMut": false,
+          "isSigner": false
+        },
+        {
+          "name": "verifierState",
+          "isMut": true,
+          "isSigner": false
+        },
+        {
+          "name": "tokenProgram",
+          "isMut": false,
+          "isSigner": false
+        }
+      ],
+      "args": [
+        {
+          "name": "amount",
+          "type": "u64"
+        },
+        {
+          "name": "verifierData",
+          "type": "bytes"
+        }
+      ]
+    },
+    {
+      "name": "close",
+      "accounts": [
+        {
+          "name": "authority",
+          "isMut": true,
+          "isSigner": true
+        },
+        {
+          "name": "state",
+          "isMut": true,
+          "isSigner": false
+        },
+        {
+          "name": "vault",
+          "isMut": true,
+          "isSigner": false
+        },
+        {
+          "name": "recipient",
+          "isMut": true,
+          "isSigner": false
+        },
+        {
+          "name": "tokenProgram",
+          "isMut": false,
+          "isSigner": false
+        }
+      ],
+      "args": []
+    }
+  ],
+  "accounts": [
+    {
+      "name": "State",
+      "type": {
+        "kind": "struct",
+        "fields": [
+          {
+            "name": "verifierProgram",
+            "docs": [
+              "Program and config which will be passed into a CPI for verifying that",
+              "the request is valid and for how much. The config is always passed into",
+              "the verification as well as any additional accounts on claim. Only works",
+              "with 8 byte instruction prefixes. That is the number of bytes that",
+              "anchor uses."
+            ],
+            "type": "publicKey"
+          },
+          {
+            "name": "verifierState",
+            "type": "publicKey"
+          },
+          {
+            "name": "verifierInstructionPrefix",
+            "type": {
+              "array": [
+                "u8",
+                8
+              ]
+            }
+          },
+          {
+            "name": "vault",
+            "docs": [
+              "Tokens to be airdropped and the bump for the token account."
+            ],
+            "type": "publicKey"
+          },
+          {
+            "name": "vaultBump",
+            "type": "u8"
+          },
+          {
+            "name": "closeAuthority",
+            "docs": [
+              "Required signer when closing."
+            ],
+            "type": "publicKey"
+          }
+        ]
+      }
+    }
+  ],
+  "errors": [
+    {
+      "code": 6000,
+      "name": "IncorrectVerifierProgram",
+      "msg": "Verifier program in claim does not match configure"
+    },
+    {
+      "code": 6001,
+      "name": "IncorrectVerifierState",
+      "msg": "Verifier state in claim does not match configure"
+    }
+  ],
+  "metadata": {
+    "address": "tXmC2ARKqzPoX6wQAVmDj25XAQUN6JQe8iz19QR5Lo3"
+  }
+}
