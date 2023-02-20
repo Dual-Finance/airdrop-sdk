@@ -422,8 +422,8 @@ export class Airdrop {
     const vault = this.getVaultAddress(airdropState);
     const tree = new BalanceTree(amountsByRecipient);
 
-    const index = amountsByRecipient.findIndex((element) => { element.account === recipient; });
-    const amount = amountsByRecipient[index].amount;
+    const index = amountsByRecipient.findIndex((element) => element.account === recipient);
+    const { amount } = amountsByRecipient[index];
 
     const proofStrings: Buffer[] = tree.getProof(index, recipient, amount);
     const proofBytes: number[][] = proofStrings.map((p) => toBytes32Array(p));
