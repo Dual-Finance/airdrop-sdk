@@ -153,4 +153,61 @@ describe('airdrop', () => {
     // Verify that the close recovered the rest.
     assert(Number((await getAccount(provider.connection, source)).amount) === amount.toNumber() - claimAmountOne.toNumber());
   });
+
+  it('GovernanceE2E', async () => {
+    const mint = await createMint(provider!);
+
+    if (provider.publicKey === undefined) { throw new Error("Testing requires 'Provider.publicKey' to be defined."); }
+    if (provider.sendAndConfirm === undefined) { throw new Error("This function requires 'Provider.sendAndConfirm' to be implemented."); }
+    const source = await createTokenAccount(provider, mint, provider.publicKey);
+    await mintToAccount(provider, mint, source, amount, provider.publicKey);
+
+    const amountPerVoter = new anchor.BN(100);
+    const eligibilityStart = new anchor.BN(0);
+    const eligibilityEnd = new anchor.BN(2_000_000_000);
+    const governance = new PublicKey('Dg31swH4qLRzqgFsDZb3eME1QvwgAXnzA1Awtwgh3oc4');
+    const proposal = new PublicKey('6ws4bv5CefMwVXi54fMc6c7VU1RrT3QxYYeGzQMiVp4Z');
+    const voteRecord = new PublicKey('BsGL7UwBT9ojUTMgtYh6foZrbWVnJvBBpsprdjkswVA1');
+    const voter = new PublicKey('2qLWeNrV7QkHQvKBoEvXrKeLqEB2ZhscZd4ds7X2JUhn');
+
+    const { transaction: governanceConfigTransaction, signers, airdropState, verifierState } = (
+      await airdrop.createConfigGovernanceTransaction(
+        mint,
+        source,
+        amountPerVoter,
+        amount,
+        provider.publicKey,
+        eligibilityStart,
+        eligibilityEnd,
+        governance,
+      ));
+
+    await provider.sendAndConfirm(governanceConfigTransaction, signers, {skipPreflight: true});
+
+    // All of the tokens are sent from the source.
+    assert(Number((await getAccount(provider.connection, source)).amount) === 0);
+
+    const voterTokenAccount = await createTokenAccount(provider, mint, voter);
+    const governanceClaimTransaction: Transaction = await airdrop.createClaimGovernanceTransaction(
+      airdropState,
+      verifierState,
+      voterTokenAccount,
+      amountPerVoter,
+      voteRecord,
+      governance,
+      proposal,
+      provider.publicKey 
+    );
+
+    await provider.sendAndConfirm(governanceClaimTransaction, [], {skipPreflight: true});
+    // Verify that the claim tokens were received.
+    assert(Number((await getAccount(provider.connection, voterTokenAccount)).amount) === amountPerVoter.toNumber());
+
+    const governanceCloseTransaction: Transaction = (
+      await airdrop.createCloseTransaction(provider.publicKey, airdropState, source)
+    );
+    await provider.sendAndConfirm(governanceCloseTransaction);
+    // Verify that the close recovered the rest.
+    assert(Number((await getAccount(provider.connection, source)).amount) === amount.toNumber() - amountPerVoter.toNumber());
+  });
 });

@@ -280,12 +280,13 @@ export class Airdrop {
   public async createConfigGovernanceTransaction(
     mint: PublicKey,
     source: PublicKey,
+    amountPerVoter: BN,
     totalAmount: BN,
     authority: PublicKey,
     eligibilityStart: BN,
     eligibilityEnd: BN,
     governance: PublicKey,
-  ): Promise<web3.Transaction> {
+  ): Promise<AirdropConfigureContext> {
     const transaction: Transaction = new Transaction();
 
     const governanceState = web3.Keypair.generate();
@@ -313,14 +314,14 @@ export class Airdrop {
     transaction.add(governanceConfigureIx);
 
     const governanceInitIx = await this.governanceVerifierProgram.methods
-      .configure(totalAmount, eligibilityStart, eligibilityEnd)
+      .configure(amountPerVoter, eligibilityStart, eligibilityEnd)
       .accounts({
         payer: authority,
-        state: governanceState.publicKey,
+        state: governanceVerifierState.publicKey,
         governance,
         systemProgram: web3.SystemProgram.programId,
       })
-      .signers([governanceState])
+      .signers([governanceVerifierState])
       .instruction();
 
     // Next instruction configures the governance state.
@@ -330,7 +331,12 @@ export class Airdrop {
     const transferIx = createTransferInstruction(source, governanceVault, authority, totalAmount);
     transaction.add(transferIx);
 
-    return transaction;
+    return {
+      transaction,
+      signers: [governanceState, governanceVerifierState],
+      airdropState: governanceState.publicKey,
+      verifierState: governanceVerifierState.publicKey,
+    };
   }
 
   /**
@@ -501,13 +507,13 @@ export class Airdrop {
    */
   public async createClaimGovernanceTransaction(
     airdropState: PublicKey,
+    verifierState: PublicKey,
     recipient: PublicKey,
     amount: BN,
     voteRecord: PublicKey,
     governance: PublicKey,
     proposal: PublicKey,
     authority: PublicKey,
-    verifierState: PublicKey,
   ): Promise<web3.Transaction> {
     const transaction: Transaction = new Transaction();
 
