@@ -99,9 +99,6 @@ describe('airdrop', () => {
 
     if (provider.publicKey === undefined) { throw new Error("Testing requires 'Provider.publicKey' to be defined."); }
     if (provider.sendAndConfirm === undefined) { throw new Error("This function requires 'Provider.sendAndConfirm' to be implemented."); }
-    const source = await createTokenAccount(provider, mint, provider.publicKey);
-    await mintToAccount(provider, mint, source, amount, provider.publicKey);
-
     const kpOne = anchor.web3.Keypair.generate();
     const kpTwo = anchor.web3.Keypair.generate();
     const kpThree = anchor.web3.Keypair.generate();
@@ -109,6 +106,9 @@ describe('airdrop', () => {
     const claimAmountOne = new anchor.BN(100);
     const claimAmountTwo = new anchor.BN(101);
     const claimAmountThree = new anchor.BN(102);
+
+    const source = await createTokenAccount(provider, mint, provider.publicKey);
+    await mintToAccount(provider, mint, source, new anchor.BN(claimAmountOne.toNumber() + claimAmountTwo.toNumber() + claimAmountThree.toNumber()), provider.publicKey);
 
     const amountsByRecipient: {account: PublicKey, amount: anchor.BN}[] = [
       { account: kpOne.publicKey, amount: claimAmountOne },
@@ -119,7 +119,6 @@ describe('airdrop', () => {
     const { transaction: merkleConfigTransaction, signers, airdropState, verifierState } = (
       await airdrop.createConfigMerkleTransaction(
         source,
-        amount,
         provider.publicKey,
         amountsByRecipient,
       ));
@@ -148,7 +147,9 @@ describe('airdrop', () => {
     );
     await provider.sendAndConfirm(merkleCloseTransaction);
     // Verify that the close recovered the rest.
-    assert(Number((await getAccount(provider.connection, source)).amount) === amount.toNumber() - claimAmountOne.toNumber());
+    // Wait for finalization.
+    await new Promise(f => setTimeout(f, 1_000));
+    assert(Number((await getAccount(provider.connection, source, 'single')).amount) === claimAmountTwo.toNumber() + claimAmountThree.toNumber());
   });
 
   it('GovernanceE2E', async () => {
@@ -204,6 +205,8 @@ describe('airdrop', () => {
     );
     await provider.sendAndConfirm(governanceCloseTransaction);
     // Verify that the close recovered the rest.
+    // Wait for finalization.
+    await new Promise(f => setTimeout(f, 1_000));
     assert(Number((await getAccount(provider.connection, source)).amount) === amount.toNumber() - amountPerVoter.toNumber());
   });
 });

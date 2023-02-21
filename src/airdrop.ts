@@ -118,7 +118,7 @@ export class Airdrop {
 
     const airdropState = web3.Keypair.generate();
     const basicVault = this.getVaultAddress(airdropState.publicKey);
-    const mint = (await getAccount(this.connection, source, 'single')).mint;
+    const { mint } = await getAccount(this.connection, source, 'single');
 
     const basicConfigureIx: TransactionInstruction = await this.airdropProgram.methods.configure(
       VERIFIER_INSTRUCTION,
@@ -161,7 +161,7 @@ export class Airdrop {
   ): Promise<AirdropConfigureContext> {
     const transaction: Transaction = new Transaction();
 
-    const mint = (await getAccount(this.connection, source, 'single')).mint;
+    const { mint } = await getAccount(this.connection, source, 'single');
     const passwordState = web3.Keypair.generate();
     const passwordVerifierState = web3.Keypair.generate();
     const passwordVault = this.getVaultAddress(passwordState.publicKey);
@@ -217,13 +217,12 @@ export class Airdrop {
    */
   public async createConfigMerkleTransaction(
     source: PublicKey,
-    totalAmount: BN,
     authority: PublicKey,
     amountsByRecipient: {account: PublicKey, amount: BN}[],
   ): Promise<AirdropConfigureContext> {
     const transaction: Transaction = new Transaction();
 
-    const mint = (await getAccount(this.connection, source, 'single')).mint;
+    const { mint } = await getAccount(this.connection, source, 'single');
     const merkleState = web3.Keypair.generate();
     const merkleVerifierState = web3.Keypair.generate();
     const merkleVault = this.getVaultAddress(merkleState.publicKey);
@@ -262,6 +261,10 @@ export class Airdrop {
     transaction.add(merkleInitIx);
 
     // Finally transfer tokens into the vault.
+    const totalAmount = amountsByRecipient.reduce(
+      (sum, current) => sum + current.amount.toNumber(),
+      0,
+    );
     const transferIx = createTransferInstruction(source, merkleVault, authority, totalAmount);
     transaction.add(transferIx);
 
@@ -288,7 +291,7 @@ export class Airdrop {
   ): Promise<AirdropConfigureContext> {
     const transaction: Transaction = new Transaction();
 
-    const mint = (await getAccount(this.connection, source, 'single')).mint;
+    const { mint } = await getAccount(this.connection, source, 'single');
     const governanceState = web3.Keypair.generate();
     const governanceVerifierState = web3.Keypair.generate();
     const governanceVault = this.getVaultAddress(governanceState.publicKey);
