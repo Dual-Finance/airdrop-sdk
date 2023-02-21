@@ -44,7 +44,7 @@ export async function createMint(
   tx.add(...instructions);
 
   // @ts-ignore
-  await provider.sendAndConfirm(tx, [mint]);
+  await provider.sendAndConfirm(tx, [mint], 'finalized');
 
   return mint.publicKey;
 }
@@ -82,7 +82,7 @@ export async function mintToAccount(
     )),
   );
   // @ts-ignore
-  await provider.sendAndConfirm(tx, []);
+  await provider.sendAndConfirm(tx, [], 'finalized');
 }
 
 async function createTokenAccountInstrs(
@@ -124,7 +124,7 @@ export async function createTokenAccount(
     )),
   );
   // @ts-ignore
-  await provider.sendAndConfirm(tx, [vault]);
+  await provider.sendAndConfirm(tx, [vault], 'finalized');
   return vault.publicKey;
 }
 

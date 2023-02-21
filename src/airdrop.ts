@@ -1,7 +1,7 @@
 import {
   AnchorProvider, Idl, Program, Wallet, web3, utils, BN,
 } from '@coral-xyz/anchor';
-import { createTransferInstruction, TOKEN_PROGRAM_ID } from '@solana/spl-token';
+import { createTransferInstruction, getAccount, TOKEN_PROGRAM_ID } from '@solana/spl-token';
 import {
   Commitment,
   ConfirmOptions,
@@ -110,7 +110,6 @@ export class Airdrop {
    * This includes the config as well as transferring the tokens.
    */
   public async createConfigBasicTransaction(
-    mint: PublicKey,
     source: PublicKey,
     amount: BN,
     authority: PublicKey,
@@ -119,6 +118,7 @@ export class Airdrop {
 
     const airdropState = web3.Keypair.generate();
     const basicVault = this.getVaultAddress(airdropState.publicKey);
+    const mint = (await getAccount(this.connection, source, 'single')).mint;
 
     const basicConfigureIx: TransactionInstruction = await this.airdropProgram.methods.configure(
       VERIFIER_INSTRUCTION,
@@ -154,7 +154,6 @@ export class Airdrop {
    * This includes the config as well as transferring the tokens.
    */
   public async createConfigPasswordTransaction(
-    mint: PublicKey,
     source: PublicKey,
     amount: BN,
     authority: PublicKey,
@@ -162,6 +161,7 @@ export class Airdrop {
   ): Promise<AirdropConfigureContext> {
     const transaction: Transaction = new Transaction();
 
+    const mint = (await getAccount(this.connection, source, 'single')).mint;
     const passwordState = web3.Keypair.generate();
     const passwordVerifierState = web3.Keypair.generate();
     const passwordVault = this.getVaultAddress(passwordState.publicKey);
@@ -216,7 +216,6 @@ export class Airdrop {
    * This includes the config as well as transferring the tokens.
    */
   public async createConfigMerkleTransaction(
-    mint: PublicKey,
     source: PublicKey,
     totalAmount: BN,
     authority: PublicKey,
@@ -224,6 +223,7 @@ export class Airdrop {
   ): Promise<AirdropConfigureContext> {
     const transaction: Transaction = new Transaction();
 
+    const mint = (await getAccount(this.connection, source, 'single')).mint;
     const merkleState = web3.Keypair.generate();
     const merkleVerifierState = web3.Keypair.generate();
     const merkleVault = this.getVaultAddress(merkleState.publicKey);
@@ -278,7 +278,6 @@ export class Airdrop {
    * airdrop. This includes the config as well as transferring the tokens.
    */
   public async createConfigGovernanceTransaction(
-    mint: PublicKey,
     source: PublicKey,
     amountPerVoter: BN,
     totalAmount: BN,
@@ -289,6 +288,7 @@ export class Airdrop {
   ): Promise<AirdropConfigureContext> {
     const transaction: Transaction = new Transaction();
 
+    const mint = (await getAccount(this.connection, source, 'single')).mint;
     const governanceState = web3.Keypair.generate();
     const governanceVerifierState = web3.Keypair.generate();
     const governanceVault = this.getVaultAddress(governanceState.publicKey);

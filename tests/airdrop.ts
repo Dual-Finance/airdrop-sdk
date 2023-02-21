@@ -22,7 +22,6 @@ describe('airdrop', () => {
 
     const { transaction: basicConfigTransaction, signers, airdropState } = (
       await airdrop.createConfigBasicTransaction(
-        mint,
         source,
         amount,
         provider.publicKey,
@@ -63,7 +62,6 @@ describe('airdrop', () => {
 
     const { transaction: passwordConfigTransaction, signers, airdropState, verifierState } = (
       await airdrop.createConfigPasswordTransaction(
-        mint,
         source,
         amount,
         provider.publicKey,
@@ -120,7 +118,6 @@ describe('airdrop', () => {
 
     const { transaction: merkleConfigTransaction, signers, airdropState, verifierState } = (
       await airdrop.createConfigMerkleTransaction(
-        mint,
         source,
         amount,
         provider.publicKey,
@@ -172,7 +169,6 @@ describe('airdrop', () => {
 
     const { transaction: governanceConfigTransaction, signers, airdropState, verifierState } = (
       await airdrop.createConfigGovernanceTransaction(
-        mint,
         source,
         amountPerVoter,
         amount,
