@@ -11,6 +11,8 @@ jobs:
     steps:
       - uses: actions/checkout@v3
 
+      - name: Generate new keygen
+        run: solana-keygen new --no-bip39-passphrase 
       - name: Install dependencies
         run: yarn install
       - name: Run tests
