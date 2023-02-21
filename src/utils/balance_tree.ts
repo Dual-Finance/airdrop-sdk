@@ -1,6 +1,5 @@
 import * as anchor from '@coral-xyz/anchor';
 import type { PublicKey } from '@solana/web3.js';
-import type BN from 'bn.js';
 import { keccak_256 } from 'js-sha3';
 
 import { MerkleTree } from './merkle_tree';
@@ -8,7 +7,7 @@ import { MerkleTree } from './merkle_tree';
 export class BalanceTree {
   private readonly _tree: MerkleTree;
 
-  constructor(balances: { account: PublicKey; amount: BN }[]) {
+  constructor(balances: { account: PublicKey; amount: anchor.BN }[]) {
     this._tree = new MerkleTree(
       balances.map(({ account, amount }, index) => BalanceTree.toNode(index, account, amount)),
     );
@@ -17,7 +16,7 @@ export class BalanceTree {
   static verifyProof(
     index: number,
     account: PublicKey,
-    amount: BN,
+    amount: anchor.BN,
     proof: Buffer[],
     root: Buffer,
   ): boolean {
@@ -29,7 +28,7 @@ export class BalanceTree {
     return pair.equals(root);
   }
 
-  static toNode(index: number, account: PublicKey, amount: BN): Buffer {
+  static toNode(index: number, account: PublicKey, amount: anchor.BN): Buffer {
     const buf = Buffer.concat([
       new anchor.BN(index).toArrayLike(Buffer, 'le', 8),
       account.toBuffer(),
@@ -42,7 +41,7 @@ export class BalanceTree {
     return this._tree.getHexRoot();
   }
 
-  getHexProof(index: number, account: PublicKey, amount: BN): string[] {
+  getHexProof(index: number, account: PublicKey, amount: anchor.BN): string[] {
     return this._tree.getHexProof(BalanceTree.toNode(index, account, amount));
   }
 
@@ -50,7 +49,7 @@ export class BalanceTree {
     return this._tree.getRoot();
   }
 
-  getProof(index: number, account: PublicKey, amount: BN): Buffer[] {
+  getProof(index: number, account: PublicKey, amount: anchor.BN): Buffer[] {
     return this._tree.getProof(BalanceTree.toNode(index, account, amount));
   }
 }

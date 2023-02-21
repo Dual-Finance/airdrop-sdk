@@ -80,9 +80,6 @@ export class MerkleTree {
   }
 
   static combinedHash(first: Buffer, second: Buffer | undefined): Buffer {
-    if (!first) {
-      return second;
-    }
     if (!second) {
       return first;
     }
