@@ -1,5 +1,6 @@
-import { PublicKey } from '@solana/web3.js';
-import { BN } from '@coral-xyz/anchor';
+import * as anchor from '@coral-xyz/anchor';
+import type { PublicKey } from '@solana/web3.js';
+import type BN from 'bn.js';
 import { keccak_256 } from 'js-sha3';
 
 import { MerkleTree } from './merkle_tree';
@@ -30,9 +31,9 @@ export class BalanceTree {
 
   static toNode(index: number, account: PublicKey, amount: BN): Buffer {
     const buf = Buffer.concat([
-      new BN(index).toArrayLike(Buffer, 'le', 8),
+      new anchor.BN(index).toArrayLike(Buffer, 'le', 8),
       account.toBuffer(),
-      new BN(amount).toArrayLike(Buffer, 'le', 8),
+      new anchor.BN(amount).toArrayLike(Buffer, 'le', 8),
     ]);
     return Buffer.from(keccak_256(buf), 'hex');
   }

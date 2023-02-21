@@ -6,8 +6,13 @@
         "lib": [
             "dom",
             "dom.iterable",
-            "esnext"
+            "esnext",
+            "es2015"
         ],
+        "types": [
+            "mocha"
+        ],
+        "typeRoots": ["./node_modules/@types"],
         "allowJs": true,
         "allowSyntheticDefaultImports": true,
         "module": "commonjs",
@@ -16,9 +21,9 @@
         "esModuleInterop": true,
         "skipLibCheck": true,
         "forceConsistentCasingInFileNames": true,
-        "resolveJsonModule": true
+        "resolveJsonModule": true,
+        "useUnknownInCatchVariables": true
     },
     "$schema": "https://json.schemastore.org/tsconfig",
-    "display": "Recommended",
-    "exclude": ["tests/*", "test_scripts/*", "lib/*"]
+    "display": "Recommended"
 }

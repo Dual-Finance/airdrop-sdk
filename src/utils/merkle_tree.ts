@@ -81,7 +81,6 @@ export class MerkleTree {
 
   static combinedHash(first: Buffer, second: Buffer | undefined): Buffer {
     if (!first) {
-      // @ts-ignore
       return second;
     }
     if (!second) {

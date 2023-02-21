@@ -9,11 +9,12 @@ import {
   ConnectionConfig,
   Keypair,
   PublicKey,
+  Signer,
   Transaction,
   TransactionInstruction,
 } from '@solana/web3.js';
 import { keccak_256 } from 'js-sha3';
-import aidropIdl from './airdrop.json';
+import aidropIdl from './airdrop_idl.json';
 import passwordVerifierIdl from './password_verifier.json';
 import merkleVerifierIdl from './merkle_verifier.json';
 import governanceVerifierIdl from './governance_verifier.json';
@@ -26,6 +27,12 @@ export const PASSWORD_VERIFIER_PK: PublicKey = new PublicKey('EmsREpwoUtHnmg8aSC
 export const MERKLE_VERIFIER_PK: PublicKey = new PublicKey('4ibGmfZ6WU9qDc231sTRsTTHoDjQ1L6wxkrEAiEvKfLm');
 export const GOVERNANCE_VERIFIER_PK: PublicKey = new PublicKey('ATCsJvzSbHaJj3a9uKTRHSoD8ZmWPfeC3sYxzcJJHTM5');
 export const VERIFIER_INSTRUCTION: number[] = [133, 161, 141, 48, 120, 198, 88, 150];
+export type AirdropConfigureContext = {
+  transaction: web3.Transaction,
+  signers: Signer[],
+  airdropState: PublicKey,
+  verifierState: PublicKey
+};
 
 /**
  * API class with functions to interact with the Airdrop Program
@@ -107,11 +114,10 @@ export class Airdrop {
     source: PublicKey,
     amount: BN,
     authority: PublicKey,
-  ): Promise<web3.Transaction> {
+  ): Promise<AirdropConfigureContext> {
     const transaction: Transaction = new Transaction();
 
     const airdropState = web3.Keypair.generate();
-    const basicVerifierState = web3.Keypair.generate();
     const basicVault = this.getVaultAddress(airdropState.publicKey);
 
     const basicConfigureIx: TransactionInstruction = await this.airdropProgram.methods.configure(
@@ -123,19 +129,24 @@ export class Airdrop {
         verifierProgram: BASIC_VERIFIER_PK,
         vault: basicVault,
         mint,
-        verifierState: basicVerifierState.publicKey,
+        verifierState: airdropState.publicKey,
         tokenProgram: TOKEN_PROGRAM_ID,
         systemProgram: web3.SystemProgram.programId,
         rent: web3.SYSVAR_RENT_PUBKEY,
       })
-      .signers([basicVerifierState]).instruction();
+      .instruction();
 
     transaction.add(basicConfigureIx);
 
     const transferIx = createTransferInstruction(source, basicVault, authority, amount);
     transaction.add(transferIx);
 
-    return transaction;
+    return {
+      transaction,
+      signers: [airdropState],
+      airdropState: airdropState.publicKey,
+      verifierState: airdropState.publicKey,
+    };
   }
 
   /**
@@ -148,7 +159,7 @@ export class Airdrop {
     amount: BN,
     authority: PublicKey,
     password: string,
-  ): Promise<web3.Transaction> {
+  ): Promise<AirdropConfigureContext> {
     const transaction: Transaction = new Transaction();
 
     const passwordState = web3.Keypair.generate();
@@ -169,7 +180,6 @@ export class Airdrop {
         systemProgram: web3.SystemProgram.programId,
         rent: web3.SYSVAR_RENT_PUBKEY,
       })
-      .signers([passwordState])
       .instruction();
 
     // First instruction configures the airdrop program.
@@ -184,7 +194,6 @@ export class Airdrop {
         systemProgram: web3.SystemProgram.programId,
         rent: web3.SYSVAR_RENT_PUBKEY,
       })
-      .signers([passwordVerifierState])
       .instruction();
 
     // Next instruction configures the password.
@@ -194,7 +203,12 @@ export class Airdrop {
     const transferIx = createTransferInstruction(source, passwordVault, authority, amount);
     transaction.add(transferIx);
 
-    return transaction;
+    return {
+      transaction,
+      signers: [passwordState, passwordVerifierState],
+      airdropState: passwordState.publicKey,
+      verifierState: passwordVerifierState.publicKey,
+    };
   }
 
   /**
@@ -206,8 +220,8 @@ export class Airdrop {
     source: PublicKey,
     totalAmount: BN,
     authority: PublicKey,
-    amountsByRecipient: [{account: PublicKey, amount: BN}],
-  ): Promise<web3.Transaction> {
+    amountsByRecipient: {account: PublicKey, amount: BN}[],
+  ): Promise<AirdropConfigureContext> {
     const transaction: Transaction = new Transaction();
 
     const merkleState = web3.Keypair.generate();
@@ -228,7 +242,6 @@ export class Airdrop {
         systemProgram: web3.SystemProgram.programId,
         rent: web3.SYSVAR_RENT_PUBKEY,
       })
-      .signers([merkleState])
       .instruction();
 
     // First instruction configures the airdrop program.
@@ -244,7 +257,6 @@ export class Airdrop {
         systemProgram: web3.SystemProgram.programId,
         rent: web3.SYSVAR_RENT_PUBKEY,
       })
-      .signers([merkleVerifierState])
       .instruction();
 
     // Next instruction configures the merkle tree.
@@ -254,7 +266,12 @@ export class Airdrop {
     const transferIx = createTransferInstruction(source, merkleVault, authority, totalAmount);
     transaction.add(transferIx);
 
-    return transaction;
+    return {
+      transaction,
+      signers: [merkleState, merkleVerifierState],
+      airdropState: merkleState.publicKey,
+      verifierState: merkleVerifierState.publicKey,
+    };
   }
 
   /**
@@ -344,7 +361,7 @@ export class Airdrop {
    */
   public async createClaimBasicTransaction(
     airdropState: PublicKey,
-    recipient: PublicKey,
+    recipientTokenAccount: PublicKey,
     amount: BN,
     authority: PublicKey,
   ): Promise<web3.Transaction> {
@@ -360,7 +377,7 @@ export class Airdrop {
         authority,
         state: airdropState,
         vault,
-        recipient,
+        recipient: recipientTokenAccount,
         verifierProgram: BASIC_VERIFIER_PK,
         // The verifier doesnt actually verifiy, so in this case, none is
         // needed, so any public key will do.
@@ -378,11 +395,11 @@ export class Airdrop {
    */
   public async createClaimPasswordTransaction(
     airdropState: PublicKey,
+    verifierState: PublicKey,
     recipient: PublicKey,
     amount: BN,
     authority: PublicKey,
     password: string,
-    verifierState: PublicKey,
   ): Promise<web3.Transaction> {
     const transaction: Transaction = new Transaction();
 
@@ -412,11 +429,11 @@ export class Airdrop {
    */
   public async createClaimMerkleTransaction(
     airdropState: PublicKey,
+    verifierState: PublicKey,
     recipient: PublicKey,
     recipientTokenAccount: PublicKey,
-    amountsByRecipient: [{account: PublicKey, amount: BN}],
+    amountsByRecipient: {account: PublicKey, amount: BN}[],
     authority: PublicKey,
-    verifierState: PublicKey,
   ): Promise<web3.Transaction> {
     const transaction: Transaction = new Transaction();
     const vault = this.getVaultAddress(airdropState);
