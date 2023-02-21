@@ -1,0 +1,15 @@
+name: Test
+on:
+  push:
+    branches: master
+  workflow_dispatch:
+jobs:
+  test:
+    runs-on: ubuntu-latest
+    container: projectserum/build:v0.26.0
+
+    steps:
+      - uses: actions/checkout@v3
+
+      - name: Run tests
+        run: yarn test

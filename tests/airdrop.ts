@@ -144,13 +144,13 @@ describe('airdrop', () => {
 
     await provider.sendAndConfirm(merkleClaimTransaction);
     // Verify that the claim tokens were received.
-    assert(Number((await getAccount(provider.connection, source)).amount) === claimAmountOne.toNumber());
+    assert(Number((await getAccount(provider.connection, recipientOneTokenAccount)).amount) === claimAmountOne.toNumber());
 
     const merkleCloseTransaction: Transaction = (
       await airdrop.createCloseTransaction(provider.publicKey, airdropState, source)
     );
     await provider.sendAndConfirm(merkleCloseTransaction);
     // Verify that the close recovered the rest.
-    assert(Number((await getAccount(provider.connection, source)).amount) === amount.toNumber());
+    assert(Number((await getAccount(provider.connection, source)).amount) === amount.toNumber() - claimAmountOne.toNumber());
   });
 });

@@ -252,10 +252,9 @@ export class Airdrop {
       toBytes32Array(tree.getRoot()),
     )
       .accounts({
-        authority,
-        verificationState: merkleVerifierState.publicKey,
+        payer: authority,
+        state: merkleVerifierState.publicKey,
         systemProgram: web3.SystemProgram.programId,
-        rent: web3.SYSVAR_RENT_PUBKEY,
       })
       .instruction();
 
@@ -439,7 +438,9 @@ export class Airdrop {
     const vault = this.getVaultAddress(airdropState);
     const tree = new BalanceTree(amountsByRecipient);
 
-    const index = amountsByRecipient.findIndex((element) => element.account === recipient);
+    const index = amountsByRecipient.findIndex(
+      (element) => element.account.toBase58() === recipient.toBase58(),
+    );
     const { amount } = amountsByRecipient[index];
 
     const proofStrings: Buffer[] = tree.getProof(index, recipient, amount);
