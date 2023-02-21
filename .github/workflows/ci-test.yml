@@ -13,6 +13,8 @@ jobs:
 
       - name: Generate new keygen
         run: solana-keygen new --no-bip39-passphrase 
+      - name: Airdrop
+        run: solana airdrop 2
       - name: Install dependencies
         run: yarn install
       - name: Run tests
