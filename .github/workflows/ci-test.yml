@@ -13,6 +13,8 @@ jobs:
 
       - name: Generate new keygen
         run: solana-keygen new --no-bip39-passphrase 
+      - name: Set url
+        run: solana config set --url d
       - name: Airdrop
         run: solana airdrop 1
       - name: Install dependencies
