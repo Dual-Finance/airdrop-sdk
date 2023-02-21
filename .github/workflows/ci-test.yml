@@ -15,9 +15,13 @@ jobs:
         run: solana-keygen new --no-bip39-passphrase 
       - name: Set url
         run: solana config set --url d
-      - name: Airdrop
-        run: solana airdrop 1
       - name: Install dependencies
         run: yarn install
-      - name: Run tests
-        run: yarn test
+
+      - uses: nick-fields/retry@v2
+        with:
+          timeout_minutes: 120
+          max_attempts: 3
+          command: |
+            solana airdrop 1
+            yarn test
