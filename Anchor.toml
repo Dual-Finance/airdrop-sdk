@@ -10,7 +10,7 @@ merkle_verifier = "4ibGmfZ6WU9qDc231sTRsTTHoDjQ1L6wxkrEAiEvKfLm"
 
 # Run against devnet. TODO: Make a test-ledger so does not need to use devnet
 [provider]
-cluster = "localnet"
+cluster = "devnet"
 wallet = "~/.config/solana/id.json"
 
 [scripts]
