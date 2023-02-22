@@ -215,6 +215,66 @@ export class Airdrop {
    * Create a transaction with the instructions for setting up a merkle airdrop.
    * This includes the config as well as transferring the tokens.
    */
+  public async createConfigMerkleTransactionFromRoot(
+    source: PublicKey,
+    authority: PublicKey,
+    totalAmount: BN,
+    merkleRoot: number[],
+  ): Promise<AirdropConfigureContext> {
+    const transaction: Transaction = new Transaction();
+
+    const { mint } = await getAccount(this.connection, source, 'single');
+    const merkleState = web3.Keypair.generate();
+    const merkleVerifierState = web3.Keypair.generate();
+    const merkleVault = this.getVaultAddress(merkleState.publicKey);
+
+    const merkleConfigureIx = await this.airdropProgram.methods.configure(
+      VERIFIER_INSTRUCTION,
+    )
+      .accounts({
+        payer: authority,
+        state: merkleState.publicKey,
+        verifierProgram: MERKLE_VERIFIER_PK,
+        vault: merkleVault,
+        mint,
+        verifierState: merkleVerifierState.publicKey,
+        tokenProgram: TOKEN_PROGRAM_ID,
+        systemProgram: web3.SystemProgram.programId,
+        rent: web3.SYSVAR_RENT_PUBKEY,
+      })
+      .instruction();
+
+    // First instruction configures the airdrop program.
+    transaction.add(merkleConfigureIx);
+
+    const merkleInitIx = await this.merkleVerifierProgram.methods.init(
+      merkleRoot,
+    )
+      .accounts({
+        payer: authority,
+        state: merkleVerifierState.publicKey,
+        systemProgram: web3.SystemProgram.programId,
+      })
+      .instruction();
+
+    // Next instruction configures the merkle tree.
+    transaction.add(merkleInitIx);
+
+    const transferIx = createTransferInstruction(source, merkleVault, authority, totalAmount);
+    transaction.add(transferIx);
+
+    return {
+      transaction,
+      signers: [merkleState, merkleVerifierState],
+      airdropState: merkleState.publicKey,
+      verifierState: merkleVerifierState.publicKey,
+    };
+  }
+
+  /**
+   * Create a transaction with the instructions for setting up a merkle airdrop.
+   * This includes the config as well as transferring the tokens.
+   */
   public async createConfigMerkleTransaction(
     source: PublicKey,
     authority: PublicKey,

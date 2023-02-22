@@ -5,6 +5,8 @@ import { PublicKey, Transaction } from '@solana/web3.js';
 import { getAccount } from '@solana/spl-token';
 import { Airdrop } from '../src/airdrop';
 import { createMint, createTokenAccount, mintToAccount } from './utils/utils';
+import { BalanceTree } from '../src/utils/balance_tree';
+import { toBytes32Array } from '../src/utils/utils';
 
 describe('airdrop', () => {
   anchor.setProvider(anchor.AnchorProvider.env());
@@ -121,6 +123,66 @@ describe('airdrop', () => {
         source,
         provider.publicKey,
         amountsByRecipient,
+      ));
+
+    await provider.sendAndConfirm(merkleConfigTransaction, signers, {skipPreflight: true});
+
+    // All of the tokens are sent from the source.
+    assert(Number((await getAccount(provider.connection, source)).amount) === 0);
+
+    const recipientOneTokenAccount = await createTokenAccount(provider, mint, kpOne.publicKey);
+    const merkleClaimTransaction: Transaction = await airdrop.createClaimMerkleTransaction(
+      airdropState,
+      verifierState,
+      kpOne.publicKey,
+      recipientOneTokenAccount,
+      amountsByRecipient,
+      provider.publicKey,
+    );
+
+    await provider.sendAndConfirm(merkleClaimTransaction);
+    // Verify that the claim tokens were received.
+    assert(Number((await getAccount(provider.connection, recipientOneTokenAccount)).amount) === claimAmountOne.toNumber());
+
+    const merkleCloseTransaction: Transaction = (
+      await airdrop.createCloseTransaction(provider.publicKey, airdropState, source)
+    );
+    await provider.sendAndConfirm(merkleCloseTransaction);
+    // Verify that the close recovered the rest.
+    // Wait for finalization.
+    await new Promise(f => setTimeout(f, 1_000));
+    assert(Number((await getAccount(provider.connection, source, 'single')).amount) === claimAmountTwo.toNumber() + claimAmountThree.toNumber());
+  });
+
+  it('MerkleFromRootE2E', async () => {
+    const mint = await createMint(provider!);
+
+    if (provider.publicKey === undefined) { throw new Error("Testing requires 'Provider.publicKey' to be defined."); }
+    if (provider.sendAndConfirm === undefined) { throw new Error("This function requires 'Provider.sendAndConfirm' to be implemented."); }
+    const kpOne = anchor.web3.Keypair.generate();
+    const kpTwo = anchor.web3.Keypair.generate();
+    const kpThree = anchor.web3.Keypair.generate();
+  
+    const claimAmountOne = new anchor.BN(100);
+    const claimAmountTwo = new anchor.BN(101);
+    const claimAmountThree = new anchor.BN(102);
+
+    const source = await createTokenAccount(provider, mint, provider.publicKey);
+    await mintToAccount(provider, mint, source, new anchor.BN(claimAmountOne.toNumber() + claimAmountTwo.toNumber() + claimAmountThree.toNumber()), provider.publicKey);
+
+    const amountsByRecipient: {account: PublicKey, amount: anchor.BN}[] = [
+      { account: kpOne.publicKey, amount: claimAmountOne },
+      { account: kpTwo.publicKey, amount: claimAmountTwo },
+      { account: kpThree.publicKey, amount: claimAmountThree },
+    ];
+    const tree = new BalanceTree(amountsByRecipient);
+
+    const { transaction: merkleConfigTransaction, signers, airdropState, verifierState } = (
+      await airdrop.createConfigMerkleTransactionFromRoot(
+        source,
+        provider.publicKey,
+        new anchor.BN(claimAmountOne.toNumber() + claimAmountTwo.toNumber() + claimAmountThree.toNumber()),
+        toBytes32Array(tree.getRoot()),
       ));
 
     await provider.sendAndConfirm(merkleConfigTransaction, signers, {skipPreflight: true});
