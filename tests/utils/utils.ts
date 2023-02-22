@@ -125,6 +125,10 @@ export async function createTokenAccount(
   );
   // @ts-ignore
   await provider.sendAndConfirm(tx, [vault]);
+
+  // Wait for finalization.
+  await new Promise(f => setTimeout(f, 1_000));
+    
   return vault.publicKey;
 }
 

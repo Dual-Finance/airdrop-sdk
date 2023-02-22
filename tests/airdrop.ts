@@ -182,6 +182,8 @@ describe('airdrop', () => {
     await provider.sendAndConfirm(governanceConfigTransaction, signers, {skipPreflight: true});
 
     // All of the tokens are sent from the source.
+    // Wait for finalization.
+    await new Promise(f => setTimeout(f, 1_000));
     assert(Number((await getAccount(provider.connection, source)).amount) === 0);
 
     const voterTokenAccount = await createTokenAccount(provider, mint, voter);
@@ -198,6 +200,8 @@ describe('airdrop', () => {
 
     await provider.sendAndConfirm(governanceClaimTransaction, [], {skipPreflight: true});
     // Verify that the claim tokens were received.
+    // Wait for finalization.
+    await new Promise(f => setTimeout(f, 1_000));
     assert(Number((await getAccount(provider.connection, voterTokenAccount)).amount) === amountPerVoter.toNumber());
 
     const governanceCloseTransaction: Transaction = (
