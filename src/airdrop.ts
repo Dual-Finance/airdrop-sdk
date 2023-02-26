@@ -1,7 +1,7 @@
 import {
   AnchorProvider, Idl, Program, Wallet, web3, utils, BN,
 } from '@coral-xyz/anchor';
-import { createTransferInstruction, getAccount, TOKEN_PROGRAM_ID } from '@solana/spl-token';
+import { createAssociatedTokenAccountInstruction, createTransferInstruction, getAccount, getAssociatedTokenAddress, TOKEN_PROGRAM_ID } from '@solana/spl-token';
 import {
   Commitment,
   ConfirmOptions,
@@ -463,12 +463,14 @@ export class Airdrop {
    */
   public async createClaimPasswordTransaction(
     airdropState: PublicKey,
-    verifierState: PublicKey,
     recipient: PublicKey,
     amount: BN,
     authority: PublicKey,
     password: string,
   ): Promise<web3.Transaction> {
+    const airdropStateObj = await this.airdropProgram.account.state.fetch(airdropState, 'single');
+    const verifierState = airdropStateObj.verifierState;
+
     const transaction: Transaction = new Transaction();
 
     const vault = this.getVaultAddress(airdropState);
@@ -497,13 +499,29 @@ export class Airdrop {
    */
   public async createClaimMerkleTransaction(
     airdropState: PublicKey,
-    verifierState: PublicKey,
     recipient: PublicKey,
-    recipientTokenAccount: PublicKey,
     amountsByRecipient: {account: PublicKey, amount: BN}[],
     authority: PublicKey,
   ): Promise<web3.Transaction> {
+    const airdropStateObj = await this.airdropProgram.account.state.fetch(airdropState, 'single');
+    const verifierState = airdropStateObj.verifierState;
+
+    const vaultObj = await getAccount(this.connection, airdropStateObj.vault, 'single');
+    const mint = vaultObj.mint;
+    const recipientTokenAccount = await getAssociatedTokenAddress(mint, recipient);
+
     const transaction: Transaction = new Transaction();
+
+    // Possibly initialize the recipient token account.
+    if (!(await this.connection.getAccountInfo(recipientTokenAccount, 'single'))) {
+      transaction.add(createAssociatedTokenAccountInstruction(
+        authority,
+        recipientTokenAccount,
+        recipient,
+        mint
+      ));
+    }
+
     const vault = this.getVaultAddress(airdropState);
     const tree = new BalanceTree(amountsByRecipient);
 
@@ -570,7 +588,6 @@ export class Airdrop {
    */
   public async createClaimGovernanceTransaction(
     airdropState: PublicKey,
-    verifierState: PublicKey,
     recipient: PublicKey,
     amount: BN,
     voteRecord: PublicKey,
@@ -578,6 +595,9 @@ export class Airdrop {
     proposal: PublicKey,
     authority: PublicKey,
   ): Promise<web3.Transaction> {
+    const airdropStateObj = await this.airdropProgram.account.state.fetch(airdropState, 'single');
+    const verifierState = airdropStateObj.verifierState;
+
     const transaction: Transaction = new Transaction();
 
     // TODO: Lookup the governance, voteRecord, and proposal for the user.

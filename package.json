@@ -1,6 +1,6 @@
 {
   "name": "@dual-finance/airdrop",
-  "version": "0.0.5",
+  "version": "0.0.6",
   "description": "Airdrop SDK",
   "main": "lib/index.js",
   "author": "Dual Finance",

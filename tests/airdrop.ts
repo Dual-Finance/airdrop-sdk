@@ -2,7 +2,7 @@ import * as anchor from '@coral-xyz/anchor';
 import assert from 'assert';
 import { Provider } from '@coral-xyz/anchor';
 import { PublicKey, Transaction } from '@solana/web3.js';
-import { getAccount } from '@solana/spl-token';
+import { getAccount, getAssociatedTokenAddress } from '@solana/spl-token';
 import { Airdrop } from '../src/airdrop';
 import { createMint, createTokenAccount, mintToAccount } from './utils/utils';
 import { BalanceTree } from '../src/utils/balance_tree';
@@ -75,9 +75,11 @@ describe('airdrop', () => {
     assert(Number((await getAccount(provider.connection, source)).amount) === 0);
     const claimAmount: anchor.BN = new anchor.BN(1_000);
 
+    // Wait for propagation.
+    await new Promise(f => setTimeout(f, 1_000));
+
     const passwordClaimTransaction: Transaction = await airdrop.createClaimPasswordTransaction(
       airdropState,
-      verifierState,
       source,
       claimAmount,
       provider.publicKey,
@@ -127,20 +129,25 @@ describe('airdrop', () => {
 
     await provider.sendAndConfirm(merkleConfigTransaction, signers, {skipPreflight: true});
 
+    // Wait for propagation.
+    await new Promise(f => setTimeout(f, 1_000));
+
     // All of the tokens are sent from the source.
     assert(Number((await getAccount(provider.connection, source)).amount) === 0);
 
-    const recipientOneTokenAccount = await createTokenAccount(provider, mint, kpOne.publicKey);
+    const recipientOneTokenAccount = await getAssociatedTokenAddress(mint, kpOne.publicKey);
+
+    // Wait for propagation.
+    await new Promise(f => setTimeout(f, 1_000));
+
     const merkleClaimTransaction: Transaction = await airdrop.createClaimMerkleTransaction(
       airdropState,
-      verifierState,
       kpOne.publicKey,
-      recipientOneTokenAccount,
       amountsByRecipient,
       provider.publicKey,
     );
 
-    await provider.sendAndConfirm(merkleClaimTransaction);
+    await provider.sendAndConfirm(merkleClaimTransaction, [], {skipPreflight: true});
     // Verify that the claim tokens were received.
     assert(Number((await getAccount(provider.connection, recipientOneTokenAccount)).amount) === claimAmountOne.toNumber());
 
@@ -168,6 +175,10 @@ describe('airdrop', () => {
     const claimAmountThree = new anchor.BN(102);
 
     const source = await createTokenAccount(provider, mint, provider.publicKey);
+
+    // Wait for propagation.
+    await new Promise(f => setTimeout(f, 1_000));
+
     await mintToAccount(provider, mint, source, new anchor.BN(claimAmountOne.toNumber() + claimAmountTwo.toNumber() + claimAmountThree.toNumber()), provider.publicKey);
 
     const amountsByRecipient: {account: PublicKey, amount: anchor.BN}[] = [
@@ -177,7 +188,7 @@ describe('airdrop', () => {
     ];
     const tree = new BalanceTree(amountsByRecipient);
 
-    const { transaction: merkleConfigTransaction, signers, airdropState, verifierState } = (
+    const { transaction: merkleConfigTransaction, signers, airdropState } = (
       await airdrop.createConfigMerkleTransactionFromRoot(
         source,
         provider.publicKey,
@@ -187,15 +198,17 @@ describe('airdrop', () => {
 
     await provider.sendAndConfirm(merkleConfigTransaction, signers, {skipPreflight: true});
 
+    // Wait for propagation.
+    await new Promise(f => setTimeout(f, 1_000));
+
     // All of the tokens are sent from the source.
     assert(Number((await getAccount(provider.connection, source)).amount) === 0);
 
-    const recipientOneTokenAccount = await createTokenAccount(provider, mint, kpOne.publicKey);
+    const recipientOneTokenAccount = await getAssociatedTokenAddress(mint, kpOne.publicKey);
+
     const merkleClaimTransaction: Transaction = await airdrop.createClaimMerkleTransaction(
       airdropState,
-      verifierState,
       kpOne.publicKey,
-      recipientOneTokenAccount,
       amountsByRecipient,
       provider.publicKey,
     );
@@ -243,6 +256,9 @@ describe('airdrop', () => {
 
     await provider.sendAndConfirm(governanceConfigTransaction, signers, {skipPreflight: true});
 
+    // Wait for propagation.
+    await new Promise(f => setTimeout(f, 1_000));
+
     // All of the tokens are sent from the source.
     // Wait for finalization.
     await new Promise(f => setTimeout(f, 1_000));
@@ -251,7 +267,6 @@ describe('airdrop', () => {
     const voterTokenAccount = await createTokenAccount(provider, mint, voter);
     const governanceClaimTransaction: Transaction = await airdrop.createClaimGovernanceTransaction(
       airdropState,
-      verifierState,
       voterTokenAccount,
       amountPerVoter,
       voteRecord,
