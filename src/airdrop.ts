@@ -1,7 +1,13 @@
 import {
   AnchorProvider, Idl, Program, Wallet, web3, utils, BN,
 } from '@coral-xyz/anchor';
-import { createAssociatedTokenAccountInstruction, createTransferInstruction, getAccount, getAssociatedTokenAddress, TOKEN_PROGRAM_ID } from '@solana/spl-token';
+import {
+  createAssociatedTokenAccountInstruction,
+  createTransferInstruction,
+  getAccount,
+  getAssociatedTokenAddress,
+  TOKEN_PROGRAM_ID,
+} from '@solana/spl-token';
 import {
   Commitment,
   ConfirmOptions,
@@ -469,7 +475,7 @@ export class Airdrop {
     password: string,
   ): Promise<web3.Transaction> {
     const airdropStateObj = await this.airdropProgram.account.state.fetch(airdropState, 'single');
-    const verifierState = airdropStateObj.verifierState;
+    const { verifierState } = airdropStateObj;
 
     const transaction: Transaction = new Transaction();
 
@@ -504,10 +510,10 @@ export class Airdrop {
     authority: PublicKey,
   ): Promise<web3.Transaction> {
     const airdropStateObj = await this.airdropProgram.account.state.fetch(airdropState, 'single');
-    const verifierState = airdropStateObj.verifierState;
+    const { verifierState } = airdropStateObj;
 
     const vaultObj = await getAccount(this.connection, airdropStateObj.vault, 'single');
-    const mint = vaultObj.mint;
+    const { mint } = vaultObj;
     const recipientTokenAccount = await getAssociatedTokenAddress(mint, recipient);
 
     const transaction: Transaction = new Transaction();
@@ -518,7 +524,7 @@ export class Airdrop {
         authority,
         recipientTokenAccount,
         recipient,
-        mint
+        mint,
       ));
     }
 
@@ -596,7 +602,7 @@ export class Airdrop {
     authority: PublicKey,
   ): Promise<web3.Transaction> {
     const airdropStateObj = await this.airdropProgram.account.state.fetch(airdropState, 'single');
-    const verifierState = airdropStateObj.verifierState;
+    const { verifierState } = airdropStateObj;
 
     const transaction: Transaction = new Transaction();
 
