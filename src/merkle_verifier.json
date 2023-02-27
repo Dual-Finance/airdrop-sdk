@@ -59,7 +59,7 @@
         {
           "name": "state",
           "isMut": true,
-          "isSigner": true
+          "isSigner": false
         },
         {
           "name": "systemProgram",
@@ -68,6 +68,15 @@
         }
       ],
       "args": [
+        {
+          "name": "seed",
+          "type": {
+            "array": [
+              "u8",
+              32
+            ]
+          }
+        },
         {
           "name": "root",
           "type": {
@@ -84,7 +93,7 @@
     {
       "name": "VerifierState",
       "docs": [
-        "State for the verifier which"
+        "State for the verifier"
       ],
       "type": {
         "kind": "struct",
