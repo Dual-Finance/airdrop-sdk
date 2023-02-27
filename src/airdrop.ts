@@ -26,7 +26,8 @@ import merkleVerifierIdl from './merkle_verifier.json';
 import governanceVerifierIdl from './governance_verifier.json';
 import { BalanceTree } from './utils/balance_tree';
 import { toBytes32Array } from './utils/utils';
-const crypto = require ('crypto');
+
+const crypto = require('crypto');
 
 export const AIRDROP_PK: PublicKey = new PublicKey('tXmC2ARKqzPoX6wQAVmDj25XAQUN6JQe8iz19QR5Lo3');
 export const BASIC_VERIFIER_PK: PublicKey = new PublicKey('FEdxZUg4BtWvMy7gy7pXEoj1isqBRYmbYdpyZfq5QZYr');
@@ -127,7 +128,7 @@ export class Airdrop {
       web3.PublicKey.findProgramAddressSync(
         [airdropSeed],
         this.airdropProgram.programId,
-    ));
+      ));
     const basicVault = this.getVaultAddress(airdropState);
     const { mint } = await getAccount(this.connection, source, 'single');
 
@@ -155,7 +156,7 @@ export class Airdrop {
 
     return {
       transaction,
-      airdropState: airdropState,
+      airdropState,
       verifierState: airdropState,
     };
   }
@@ -178,12 +179,12 @@ export class Airdrop {
       web3.PublicKey.findProgramAddressSync(
         [airdropSeed],
         this.airdropProgram.programId,
-    ));
+      ));
     const [passwordVerifierState, _passwordVerifierBump] = (
       web3.PublicKey.findProgramAddressSync(
         [verifierSeed],
         this.passwordVerifierProgram.programId,
-    ));
+      ));
 
     const { mint } = await getAccount(this.connection, source, 'single');
     const passwordVault = this.getVaultAddress(passwordAirdropState);
@@ -254,12 +255,12 @@ export class Airdrop {
       web3.PublicKey.findProgramAddressSync(
         [airdropSeed],
         this.airdropProgram.programId,
-    ));
+      ));
     const [merkleVerifierState, _merkleVerifierBump] = (
       web3.PublicKey.findProgramAddressSync(
         [verifierSeed],
         this.merkleVerifierProgram.programId,
-    ));
+      ));
     const merkleVault = this.getVaultAddress(merkleAirdropState);
 
     const merkleConfigureIx = await this.airdropProgram.methods.configure(
@@ -325,12 +326,12 @@ export class Airdrop {
       web3.PublicKey.findProgramAddressSync(
         [airdropSeed],
         this.airdropProgram.programId,
-    ));
+      ));
     const [merkleVerifierState, _merkleVerifierBump] = (
       web3.PublicKey.findProgramAddressSync(
         [verifierSeed],
         this.merkleVerifierProgram.programId,
-    ));
+      ));
 
     const merkleVault = this.getVaultAddress(merkleAirdropState);
 
@@ -407,12 +408,12 @@ export class Airdrop {
       web3.PublicKey.findProgramAddressSync(
         [airdropSeed],
         this.airdropProgram.programId,
-    ));
+      ));
     const [governanceVerifierState, _governanceVerifierBump] = (
       web3.PublicKey.findProgramAddressSync(
         [verifierSeed],
         this.governanceVerifierProgram.programId,
-    ));
+      ));
 
     const governanceVault = this.getVaultAddress(governanceAirdropState);
 
