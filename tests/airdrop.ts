@@ -22,14 +22,14 @@ describe('airdrop', () => {
     const source = await createTokenAccount(provider, mint, provider.publicKey);
     await mintToAccount(provider, mint, source, amount, provider.publicKey);
 
-    const { transaction: basicConfigTransaction, signers, airdropState } = (
+    const { transaction: basicConfigTransaction, airdropState } = (
       await airdrop.createConfigBasicTransaction(
         source,
         amount,
         provider.publicKey,
       ));
 
-    await provider.sendAndConfirm(basicConfigTransaction, signers);
+    await provider.sendAndConfirm(basicConfigTransaction);
 
     assert(Number((await getAccount(provider.connection, source)).amount) === 0);
     const claimAmount: anchor.BN = new anchor.BN(1_000);
@@ -62,7 +62,7 @@ describe('airdrop', () => {
     const source = await createTokenAccount(provider, mint, provider.publicKey);
     await mintToAccount(provider, mint, source, amount, provider.publicKey);
 
-    const { transaction: passwordConfigTransaction, signers, airdropState, verifierState } = (
+    const { transaction: passwordConfigTransaction, airdropState, verifierState } = (
       await airdrop.createConfigPasswordTransaction(
         source,
         amount,
@@ -70,7 +70,7 @@ describe('airdrop', () => {
         PASSWORD
       ));
 
-    await provider.sendAndConfirm(passwordConfigTransaction, signers);
+    await provider.sendAndConfirm(passwordConfigTransaction);
 
     assert(Number((await getAccount(provider.connection, source)).amount) === 0);
     const claimAmount: anchor.BN = new anchor.BN(1_000);
@@ -120,14 +120,14 @@ describe('airdrop', () => {
       { account: kpThree.publicKey, amount: claimAmountThree },
     ];
 
-    const { transaction: merkleConfigTransaction, signers, airdropState, verifierState } = (
+    const { transaction: merkleConfigTransaction, airdropState, verifierState } = (
       await airdrop.createConfigMerkleTransaction(
         source,
         provider.publicKey,
         amountsByRecipient,
       ));
 
-    await provider.sendAndConfirm(merkleConfigTransaction, signers, {skipPreflight: true});
+    await provider.sendAndConfirm(merkleConfigTransaction, [], {skipPreflight: true});
 
     // Wait for propagation.
     await new Promise(f => setTimeout(f, 1_000));
@@ -188,7 +188,7 @@ describe('airdrop', () => {
     ];
     const tree = new BalanceTree(amountsByRecipient);
 
-    const { transaction: merkleConfigTransaction, signers, airdropState } = (
+    const { transaction: merkleConfigTransaction, airdropState } = (
       await airdrop.createConfigMerkleTransactionFromRoot(
         source,
         provider.publicKey,
@@ -196,7 +196,7 @@ describe('airdrop', () => {
         toBytes32Array(tree.getRoot()),
       ));
 
-    await provider.sendAndConfirm(merkleConfigTransaction, signers, {skipPreflight: true});
+    await provider.sendAndConfirm(merkleConfigTransaction, [], {skipPreflight: true});
 
     // Wait for propagation.
     await new Promise(f => setTimeout(f, 1_000));
@@ -243,7 +243,7 @@ describe('airdrop', () => {
     const voteRecord = new PublicKey('BsGL7UwBT9ojUTMgtYh6foZrbWVnJvBBpsprdjkswVA1');
     const voter = new PublicKey('2qLWeNrV7QkHQvKBoEvXrKeLqEB2ZhscZd4ds7X2JUhn');
 
-    const { transaction: governanceConfigTransaction, signers, airdropState, verifierState } = (
+    const { transaction: governanceConfigTransaction, airdropState, verifierState } = (
       await airdrop.createConfigGovernanceTransaction(
         source,
         amountPerVoter,
@@ -254,7 +254,7 @@ describe('airdrop', () => {
         governance,
       ));
 
-    await provider.sendAndConfirm(governanceConfigTransaction, signers, {skipPreflight: true});
+    await provider.sendAndConfirm(governanceConfigTransaction, [], {skipPreflight: true});
 
     // Wait for propagation.
     await new Promise(f => setTimeout(f, 1_000));

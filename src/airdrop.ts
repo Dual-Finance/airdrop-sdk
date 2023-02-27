@@ -27,6 +27,8 @@ import governanceVerifierIdl from './governance_verifier.json';
 import { BalanceTree } from './utils/balance_tree';
 import { toBytes32Array } from './utils/utils';
 
+const crypto = require('crypto');
+
 export const AIRDROP_PK: PublicKey = new PublicKey('tXmC2ARKqzPoX6wQAVmDj25XAQUN6JQe8iz19QR5Lo3');
 export const BASIC_VERIFIER_PK: PublicKey = new PublicKey('FEdxZUg4BtWvMy7gy7pXEoj1isqBRYmbYdpyZfq5QZYr');
 export const PASSWORD_VERIFIER_PK: PublicKey = new PublicKey('EmsREpwoUtHnmg8aSCqmTFyfp71vnnFCdZozohcrZPeL');
@@ -35,7 +37,6 @@ export const GOVERNANCE_VERIFIER_PK: PublicKey = new PublicKey('ATCsJvzSbHaJj3a9
 export const VERIFIER_INSTRUCTION: number[] = [133, 161, 141, 48, 120, 198, 88, 150];
 export type AirdropConfigureContext = {
   transaction: web3.Transaction,
-  signers: Signer[],
   airdropState: PublicKey,
   verifierState: PublicKey
 };
@@ -122,20 +123,26 @@ export class Airdrop {
   ): Promise<AirdropConfigureContext> {
     const transaction: Transaction = new Transaction();
 
-    const airdropState = web3.Keypair.generate();
-    const basicVault = this.getVaultAddress(airdropState.publicKey);
+    const airdropSeed = crypto.randomBytes(32);
+    const [airdropState, _airdropStateBump] = (
+      web3.PublicKey.findProgramAddressSync(
+        [airdropSeed],
+        this.airdropProgram.programId,
+      ));
+    const basicVault = this.getVaultAddress(airdropState);
     const { mint } = await getAccount(this.connection, source, 'single');
 
     const basicConfigureIx: TransactionInstruction = await this.airdropProgram.methods.configure(
+      airdropSeed,
       VERIFIER_INSTRUCTION,
     )
       .accounts({
         payer: authority,
-        state: airdropState.publicKey,
+        state: airdropState,
         verifierProgram: BASIC_VERIFIER_PK,
         vault: basicVault,
         mint,
-        verifierState: airdropState.publicKey,
+        verifierState: airdropState,
         tokenProgram: TOKEN_PROGRAM_ID,
         systemProgram: web3.SystemProgram.programId,
         rent: web3.SYSVAR_RENT_PUBKEY,
@@ -149,9 +156,8 @@ export class Airdrop {
 
     return {
       transaction,
-      signers: [airdropState],
-      airdropState: airdropState.publicKey,
-      verifierState: airdropState.publicKey,
+      airdropState,
+      verifierState: airdropState,
     };
   }
 
@@ -167,21 +173,33 @@ export class Airdrop {
   ): Promise<AirdropConfigureContext> {
     const transaction: Transaction = new Transaction();
 
+    const airdropSeed = crypto.randomBytes(32);
+    const verifierSeed = crypto.randomBytes(32);
+    const [passwordAirdropState, _passwordAirdropStateBump] = (
+      web3.PublicKey.findProgramAddressSync(
+        [airdropSeed],
+        this.airdropProgram.programId,
+      ));
+    const [passwordVerifierState, _passwordVerifierBump] = (
+      web3.PublicKey.findProgramAddressSync(
+        [verifierSeed],
+        this.passwordVerifierProgram.programId,
+      ));
+
     const { mint } = await getAccount(this.connection, source, 'single');
-    const passwordState = web3.Keypair.generate();
-    const passwordVerifierState = web3.Keypair.generate();
-    const passwordVault = this.getVaultAddress(passwordState.publicKey);
+    const passwordVault = this.getVaultAddress(passwordAirdropState);
 
     const passwordConfigureIx = await this.airdropProgram.methods.configure(
+      airdropSeed,
       VERIFIER_INSTRUCTION,
     )
       .accounts({
         payer: authority,
-        state: passwordState.publicKey,
+        state: passwordAirdropState,
         verifierProgram: PASSWORD_VERIFIER_PK,
         vault: passwordVault,
         mint,
-        verifierState: passwordVerifierState.publicKey,
+        verifierState: passwordVerifierState,
         tokenProgram: TOKEN_PROGRAM_ID,
         systemProgram: web3.SystemProgram.programId,
         rent: web3.SYSVAR_RENT_PUBKEY,
@@ -192,11 +210,12 @@ export class Airdrop {
     transaction.add(passwordConfigureIx);
 
     const passwordInitIx = await this.passwordVerifierProgram.methods.init(
+      verifierSeed,
       Buffer.from(keccak_256.digest(Buffer.from(password))),
     )
       .accounts({
         authority,
-        verificationState: passwordVerifierState.publicKey,
+        verificationState: passwordVerifierState,
         systemProgram: web3.SystemProgram.programId,
         rent: web3.SYSVAR_RENT_PUBKEY,
       })
@@ -211,9 +230,8 @@ export class Airdrop {
 
     return {
       transaction,
-      signers: [passwordState, passwordVerifierState],
-      airdropState: passwordState.publicKey,
-      verifierState: passwordVerifierState.publicKey,
+      airdropState: passwordAirdropState,
+      verifierState: passwordVerifierState,
     };
   }
 
@@ -230,20 +248,32 @@ export class Airdrop {
     const transaction: Transaction = new Transaction();
 
     const { mint } = await getAccount(this.connection, source, 'single');
-    const merkleState = web3.Keypair.generate();
-    const merkleVerifierState = web3.Keypair.generate();
-    const merkleVault = this.getVaultAddress(merkleState.publicKey);
+
+    const airdropSeed = crypto.randomBytes(32);
+    const verifierSeed = crypto.randomBytes(32);
+    const [merkleAirdropState, _merkleAirdropStateBump] = (
+      web3.PublicKey.findProgramAddressSync(
+        [airdropSeed],
+        this.airdropProgram.programId,
+      ));
+    const [merkleVerifierState, _merkleVerifierBump] = (
+      web3.PublicKey.findProgramAddressSync(
+        [verifierSeed],
+        this.merkleVerifierProgram.programId,
+      ));
+    const merkleVault = this.getVaultAddress(merkleAirdropState);
 
     const merkleConfigureIx = await this.airdropProgram.methods.configure(
+      airdropSeed,
       VERIFIER_INSTRUCTION,
     )
       .accounts({
         payer: authority,
-        state: merkleState.publicKey,
+        state: merkleAirdropState,
         verifierProgram: MERKLE_VERIFIER_PK,
         vault: merkleVault,
         mint,
-        verifierState: merkleVerifierState.publicKey,
+        verifierState: merkleVerifierState,
         tokenProgram: TOKEN_PROGRAM_ID,
         systemProgram: web3.SystemProgram.programId,
         rent: web3.SYSVAR_RENT_PUBKEY,
@@ -254,11 +284,12 @@ export class Airdrop {
     transaction.add(merkleConfigureIx);
 
     const merkleInitIx = await this.merkleVerifierProgram.methods.init(
+      verifierSeed,
       merkleRoot,
     )
       .accounts({
         payer: authority,
-        state: merkleVerifierState.publicKey,
+        state: merkleVerifierState,
         systemProgram: web3.SystemProgram.programId,
       })
       .instruction();
@@ -271,9 +302,8 @@ export class Airdrop {
 
     return {
       transaction,
-      signers: [merkleState, merkleVerifierState],
-      airdropState: merkleState.publicKey,
-      verifierState: merkleVerifierState.publicKey,
+      airdropState: merkleAirdropState,
+      verifierState: merkleVerifierState,
     };
   }
 
@@ -289,20 +319,33 @@ export class Airdrop {
     const transaction: Transaction = new Transaction();
 
     const { mint } = await getAccount(this.connection, source, 'single');
-    const merkleState = web3.Keypair.generate();
-    const merkleVerifierState = web3.Keypair.generate();
-    const merkleVault = this.getVaultAddress(merkleState.publicKey);
+
+    const airdropSeed = crypto.randomBytes(32);
+    const verifierSeed = crypto.randomBytes(32);
+    const [merkleAirdropState, _merkleAirdropStateBump] = (
+      web3.PublicKey.findProgramAddressSync(
+        [airdropSeed],
+        this.airdropProgram.programId,
+      ));
+    const [merkleVerifierState, _merkleVerifierBump] = (
+      web3.PublicKey.findProgramAddressSync(
+        [verifierSeed],
+        this.merkleVerifierProgram.programId,
+      ));
+
+    const merkleVault = this.getVaultAddress(merkleAirdropState);
 
     const merkleConfigureIx = await this.airdropProgram.methods.configure(
+      airdropSeed,
       VERIFIER_INSTRUCTION,
     )
       .accounts({
         payer: authority,
-        state: merkleState.publicKey,
+        state: merkleAirdropState,
         verifierProgram: MERKLE_VERIFIER_PK,
         vault: merkleVault,
         mint,
-        verifierState: merkleVerifierState.publicKey,
+        verifierState: merkleVerifierState,
         tokenProgram: TOKEN_PROGRAM_ID,
         systemProgram: web3.SystemProgram.programId,
         rent: web3.SYSVAR_RENT_PUBKEY,
@@ -314,11 +357,12 @@ export class Airdrop {
 
     const tree = new BalanceTree(amountsByRecipient);
     const merkleInitIx = await this.merkleVerifierProgram.methods.init(
+      verifierSeed,
       toBytes32Array(tree.getRoot()),
     )
       .accounts({
         payer: authority,
-        state: merkleVerifierState.publicKey,
+        state: merkleVerifierState,
         systemProgram: web3.SystemProgram.programId,
       })
       .instruction();
@@ -336,9 +380,8 @@ export class Airdrop {
 
     return {
       transaction,
-      signers: [merkleState, merkleVerifierState],
-      airdropState: merkleState.publicKey,
-      verifierState: merkleVerifierState.publicKey,
+      airdropState: merkleAirdropState,
+      verifierState: merkleVerifierState,
     };
   }
 
@@ -358,39 +401,50 @@ export class Airdrop {
     const transaction: Transaction = new Transaction();
 
     const { mint } = await getAccount(this.connection, source, 'single');
-    const governanceState = web3.Keypair.generate();
-    const governanceVerifierState = web3.Keypair.generate();
-    const governanceVault = this.getVaultAddress(governanceState.publicKey);
+
+    const airdropSeed = crypto.randomBytes(32);
+    const verifierSeed = crypto.randomBytes(32);
+    const [governanceAirdropState, _governanceAirdropStateBump] = (
+      web3.PublicKey.findProgramAddressSync(
+        [airdropSeed],
+        this.airdropProgram.programId,
+      ));
+    const [governanceVerifierState, _governanceVerifierBump] = (
+      web3.PublicKey.findProgramAddressSync(
+        [verifierSeed],
+        this.governanceVerifierProgram.programId,
+      ));
+
+    const governanceVault = this.getVaultAddress(governanceAirdropState);
 
     const governanceConfigureIx = await this.airdropProgram.methods.configure(
+      airdropSeed,
       VERIFIER_INSTRUCTION,
     )
       .accounts({
         payer: authority,
-        state: governanceState.publicKey,
+        state: governanceAirdropState,
         verifierProgram: GOVERNANCE_VERIFIER_PK,
         vault: governanceVault,
         mint,
-        verifierState: governanceVerifierState.publicKey,
+        verifierState: governanceVerifierState,
         tokenProgram: TOKEN_PROGRAM_ID,
         systemProgram: web3.SystemProgram.programId,
         rent: web3.SYSVAR_RENT_PUBKEY,
       })
-      .signers([governanceState])
       .instruction();
 
     // First instruction configures the airdrop program.
     transaction.add(governanceConfigureIx);
 
     const governanceInitIx = await this.governanceVerifierProgram.methods
-      .configure(amountPerVoter, eligibilityStart, eligibilityEnd)
+      .configure(verifierSeed, amountPerVoter, eligibilityStart, eligibilityEnd)
       .accounts({
         payer: authority,
-        state: governanceVerifierState.publicKey,
+        state: governanceVerifierState,
         governance,
         systemProgram: web3.SystemProgram.programId,
       })
-      .signers([governanceVerifierState])
       .instruction();
 
     // Next instruction configures the governance state.
@@ -402,9 +456,8 @@ export class Airdrop {
 
     return {
       transaction,
-      signers: [governanceState, governanceVerifierState],
-      airdropState: governanceState.publicKey,
-      verifierState: governanceVerifierState.publicKey,
+      airdropState: governanceAirdropState,
+      verifierState: governanceVerifierState,
     };
   }
 
