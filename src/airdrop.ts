@@ -21,9 +21,9 @@ import {
 } from '@solana/web3.js';
 import { keccak_256 } from 'js-sha3';
 import aidropIdl from './airdrop_idl.json';
+import basicVerifierIdl from './basic_verifier.json';
 import passwordVerifierIdl from './password_verifier.json';
 import merkleVerifierIdl from './merkle_verifier.json';
-import governanceVerifierIdl from './governance_verifier.json';
 import { BalanceTree } from './utils/balance_tree';
 import { toBytes32Array } from './utils/utils';
 
@@ -33,8 +33,6 @@ export const AIRDROP_PK: PublicKey = new PublicKey('tXmC2ARKqzPoX6wQAVmDj25XAQUN
 export const BASIC_VERIFIER_PK: PublicKey = new PublicKey('FEdxZUg4BtWvMy7gy7pXEoj1isqBRYmbYdpyZfq5QZYr');
 export const PASSWORD_VERIFIER_PK: PublicKey = new PublicKey('EmsREpwoUtHnmg8aSCqmTFyfp71vnnFCdZozohcrZPeL');
 export const MERKLE_VERIFIER_PK: PublicKey = new PublicKey('4ibGmfZ6WU9qDc231sTRsTTHoDjQ1L6wxkrEAiEvKfLm');
-export const GOVERNANCE_VERIFIER_PK: PublicKey = new PublicKey('ATCsJvzSbHaJj3a9uKTRHSoD8ZmWPfeC3sYxzcJJHTM5');
-export const VERIFIER_INSTRUCTION: number[] = [133, 161, 141, 48, 120, 198, 88, 150];
 export type AirdropConfigureContext = {
   transaction: web3.Transaction,
   airdropState: PublicKey,
@@ -49,11 +47,9 @@ export class Airdrop {
 
   private airdropProgram: Program;
 
+  private basicVerifierProgram: Program;
   private passwordVerifierProgram: Program;
-
   private merkleVerifierProgram: Program;
-
-  private governanceVerifierProgram: Program;
 
   private commitment: Commitment | ConnectionConfig | undefined;
 
@@ -84,6 +80,11 @@ export class Airdrop {
 
     const provider = new AnchorProvider(this.connection, wallet, opts);
     this.airdropProgram = new Program(aidropIdl as Idl, AIRDROP_PK, provider);
+    this.basicVerifierProgram = new Program(
+      basicVerifierIdl as Idl,
+      BASIC_VERIFIER_PK,
+      provider,
+    );
     this.passwordVerifierProgram = new Program(
       passwordVerifierIdl as Idl,
       PASSWORD_VERIFIER_PK,
@@ -92,11 +93,6 @@ export class Airdrop {
     this.merkleVerifierProgram = new Program(
       merkleVerifierIdl as Idl,
       MERKLE_VERIFIER_PK,
-      provider,
-    );
-    this.governanceVerifierProgram = new Program(
-      governanceVerifierIdl as Idl,
-      GOVERNANCE_VERIFIER_PK,
       provider,
     );
   }
@@ -132,17 +128,20 @@ export class Airdrop {
     const basicVault = this.getVaultAddress(airdropState);
     const { mint } = await getAccount(this.connection, source, 'single');
 
+    const [verifierSignature, _signatureBump] = web3.PublicKey.findProgramAddressSync(
+      [airdropState.toBuffer()],
+      this.basicVerifierProgram.programId,
+    );
+
     const basicConfigureIx: TransactionInstruction = await this.airdropProgram.methods.configure(
       airdropSeed,
-      VERIFIER_INSTRUCTION,
     )
       .accounts({
         payer: authority,
-        state: airdropState,
-        verifierProgram: BASIC_VERIFIER_PK,
+        verifierSignature,
         vault: basicVault,
         mint,
-        verifierState: airdropState,
+        state: airdropState,
         tokenProgram: TOKEN_PROGRAM_ID,
         systemProgram: web3.SystemProgram.programId,
         rent: web3.SYSVAR_RENT_PUBKEY,
@@ -154,6 +153,7 @@ export class Airdrop {
     const transferIx = createTransferInstruction(source, basicVault, authority, amount);
     transaction.add(transferIx);
 
+    // No verifier state is actually needed.
     return {
       transaction,
       airdropState,
@@ -186,20 +186,23 @@ export class Airdrop {
         this.passwordVerifierProgram.programId,
       ));
 
+    const [verifierSignature, _signatureBump] = web3.PublicKey.findProgramAddressSync(
+      [passwordAirdropState.toBuffer()],
+      this.passwordVerifierProgram.programId,
+    );
+
     const { mint } = await getAccount(this.connection, source, 'single');
     const passwordVault = this.getVaultAddress(passwordAirdropState);
 
     const passwordConfigureIx = await this.airdropProgram.methods.configure(
       airdropSeed,
-      VERIFIER_INSTRUCTION,
     )
       .accounts({
         payer: authority,
         state: passwordAirdropState,
-        verifierProgram: PASSWORD_VERIFIER_PK,
         vault: passwordVault,
         mint,
-        verifierState: passwordVerifierState,
+        verifierSignature,
         tokenProgram: TOKEN_PROGRAM_ID,
         systemProgram: web3.SystemProgram.programId,
         rent: web3.SYSVAR_RENT_PUBKEY,
@@ -216,6 +219,7 @@ export class Airdrop {
       .accounts({
         authority,
         verificationState: passwordVerifierState,
+        airdropState: passwordAirdropState,
         systemProgram: web3.SystemProgram.programId,
         rent: web3.SYSVAR_RENT_PUBKEY,
       })
@@ -239,82 +243,12 @@ export class Airdrop {
    * Create a transaction with the instructions for setting up a merkle airdrop.
    * This includes the config as well as transferring the tokens.
    */
-  public async createConfigMerkleTransactionFromRoot(
-    source: PublicKey,
-    authority: PublicKey,
-    totalAmount: BN,
-    merkleRoot: number[],
-  ): Promise<AirdropConfigureContext> {
-    const transaction: Transaction = new Transaction();
-
-    const { mint } = await getAccount(this.connection, source, 'single');
-
-    const airdropSeed = crypto.randomBytes(32);
-    const verifierSeed = crypto.randomBytes(32);
-    const [merkleAirdropState, _merkleAirdropStateBump] = (
-      web3.PublicKey.findProgramAddressSync(
-        [airdropSeed],
-        this.airdropProgram.programId,
-      ));
-    const [merkleVerifierState, _merkleVerifierBump] = (
-      web3.PublicKey.findProgramAddressSync(
-        [verifierSeed],
-        this.merkleVerifierProgram.programId,
-      ));
-    const merkleVault = this.getVaultAddress(merkleAirdropState);
-
-    const merkleConfigureIx = await this.airdropProgram.methods.configure(
-      airdropSeed,
-      VERIFIER_INSTRUCTION,
-    )
-      .accounts({
-        payer: authority,
-        state: merkleAirdropState,
-        verifierProgram: MERKLE_VERIFIER_PK,
-        vault: merkleVault,
-        mint,
-        verifierState: merkleVerifierState,
-        tokenProgram: TOKEN_PROGRAM_ID,
-        systemProgram: web3.SystemProgram.programId,
-        rent: web3.SYSVAR_RENT_PUBKEY,
-      })
-      .instruction();
-
-    // First instruction configures the airdrop program.
-    transaction.add(merkleConfigureIx);
-
-    const merkleInitIx = await this.merkleVerifierProgram.methods.init(
-      verifierSeed,
-      merkleRoot,
-    )
-      .accounts({
-        payer: authority,
-        state: merkleVerifierState,
-        systemProgram: web3.SystemProgram.programId,
-      })
-      .instruction();
-
-    // Next instruction configures the merkle tree.
-    transaction.add(merkleInitIx);
-
-    const transferIx = createTransferInstruction(source, merkleVault, authority, totalAmount);
-    transaction.add(transferIx);
-
-    return {
-      transaction,
-      airdropState: merkleAirdropState,
-      verifierState: merkleVerifierState,
-    };
-  }
-
-  /**
-   * Create a transaction with the instructions for setting up a merkle airdrop.
-   * This includes the config as well as transferring the tokens.
-   */
   public async createConfigMerkleTransaction(
     source: PublicKey,
     authority: PublicKey,
-    amountsByRecipient: {account: PublicKey, amount: BN}[],
+    totalAmount: BN,
+    merkleRoot?: number[],
+    amountsByRecipient?: {account: PublicKey, amount: BN}[],
   ): Promise<AirdropConfigureContext> {
     const transaction: Transaction = new Transaction();
 
@@ -332,20 +266,21 @@ export class Airdrop {
         [verifierSeed],
         this.merkleVerifierProgram.programId,
       ));
-
     const merkleVault = this.getVaultAddress(merkleAirdropState);
+    const [verifierSignature, _signatureBump] = web3.PublicKey.findProgramAddressSync(
+      [merkleAirdropState.toBuffer()],
+      this.merkleVerifierProgram.programId,
+    );
 
     const merkleConfigureIx = await this.airdropProgram.methods.configure(
       airdropSeed,
-      VERIFIER_INSTRUCTION,
     )
       .accounts({
         payer: authority,
-        state: merkleAirdropState,
-        verifierProgram: MERKLE_VERIFIER_PK,
+        verifierSignature,
         vault: merkleVault,
         mint,
-        verifierState: merkleVerifierState,
+        state: merkleAirdropState,
         tokenProgram: TOKEN_PROGRAM_ID,
         systemProgram: web3.SystemProgram.programId,
         rent: web3.SYSVAR_RENT_PUBKEY,
@@ -355,14 +290,24 @@ export class Airdrop {
     // First instruction configures the airdrop program.
     transaction.add(merkleConfigureIx);
 
-    const tree = new BalanceTree(amountsByRecipient);
+    let root: number[] = [];
+    if (amountsByRecipient) {
+      const tree = new BalanceTree(amountsByRecipient);
+      root = toBytes32Array(tree.getRoot());
+    } else if (merkleRoot) {
+      root = merkleRoot;
+    } else {
+      throw new Error('Merkle root of amounts by recipient required');
+    }
+
     const merkleInitIx = await this.merkleVerifierProgram.methods.init(
       verifierSeed,
-      toBytes32Array(tree.getRoot()),
+      root,
     )
       .accounts({
         payer: authority,
         state: merkleVerifierState,
+        airdropState: merkleAirdropState,
         systemProgram: web3.SystemProgram.programId,
       })
       .instruction();
@@ -370,11 +315,6 @@ export class Airdrop {
     // Next instruction configures the merkle tree.
     transaction.add(merkleInitIx);
 
-    // Finally transfer tokens into the vault.
-    const totalAmount = amountsByRecipient.reduce(
-      (sum, current) => sum + current.amount.toNumber(),
-      0,
-    );
     const transferIx = createTransferInstruction(source, merkleVault, authority, totalAmount);
     transaction.add(transferIx);
 
@@ -382,82 +322,6 @@ export class Airdrop {
       transaction,
       airdropState: merkleAirdropState,
       verifierState: merkleVerifierState,
-    };
-  }
-
-  /**
-   * Create a transaction with the instructions for setting up a governance
-   * airdrop. This includes the config as well as transferring the tokens.
-   */
-  public async createConfigGovernanceTransaction(
-    source: PublicKey,
-    amountPerVoter: BN,
-    totalAmount: BN,
-    authority: PublicKey,
-    eligibilityStart: BN,
-    eligibilityEnd: BN,
-    governance: PublicKey,
-  ): Promise<AirdropConfigureContext> {
-    const transaction: Transaction = new Transaction();
-
-    const { mint } = await getAccount(this.connection, source, 'single');
-
-    const airdropSeed = crypto.randomBytes(32);
-    const verifierSeed = crypto.randomBytes(32);
-    const [governanceAirdropState, _governanceAirdropStateBump] = (
-      web3.PublicKey.findProgramAddressSync(
-        [airdropSeed],
-        this.airdropProgram.programId,
-      ));
-    const [governanceVerifierState, _governanceVerifierBump] = (
-      web3.PublicKey.findProgramAddressSync(
-        [verifierSeed],
-        this.governanceVerifierProgram.programId,
-      ));
-
-    const governanceVault = this.getVaultAddress(governanceAirdropState);
-
-    const governanceConfigureIx = await this.airdropProgram.methods.configure(
-      airdropSeed,
-      VERIFIER_INSTRUCTION,
-    )
-      .accounts({
-        payer: authority,
-        state: governanceAirdropState,
-        verifierProgram: GOVERNANCE_VERIFIER_PK,
-        vault: governanceVault,
-        mint,
-        verifierState: governanceVerifierState,
-        tokenProgram: TOKEN_PROGRAM_ID,
-        systemProgram: web3.SystemProgram.programId,
-        rent: web3.SYSVAR_RENT_PUBKEY,
-      })
-      .instruction();
-
-    // First instruction configures the airdrop program.
-    transaction.add(governanceConfigureIx);
-
-    const governanceInitIx = await this.governanceVerifierProgram.methods
-      .configure(verifierSeed, amountPerVoter, eligibilityStart, eligibilityEnd)
-      .accounts({
-        payer: authority,
-        state: governanceVerifierState,
-        governance,
-        systemProgram: web3.SystemProgram.programId,
-      })
-      .instruction();
-
-    // Next instruction configures the governance state.
-    transaction.add(governanceInitIx);
-
-    // Finally transfer tokens into the vault.
-    const transferIx = createTransferInstruction(source, governanceVault, authority, totalAmount);
-    transaction.add(transferIx);
-
-    return {
-      transaction,
-      airdropState: governanceAirdropState,
-      verifierState: governanceVerifierState,
     };
   }
 
@@ -494,22 +358,23 @@ export class Airdrop {
   ): Promise<web3.Transaction> {
     const transaction: Transaction = new Transaction();
 
+    const [verifierSignature, _signatureBump] = web3.PublicKey.findProgramAddressSync(
+      [airdropState.toBuffer()],
+      this.basicVerifierProgram.programId,
+    );
+
     const vault = this.getVaultAddress(airdropState);
-    const basicClaimIx: TransactionInstruction = await this.airdropProgram.methods.claim(
+    const basicClaimIx: TransactionInstruction = await this.basicVerifierProgram.methods.claim(
       amount,
-      // This is the data for the proof. In this case, no verification is done, so no proof.
-      Buffer.from(''),
     )
       .accounts({
         authority,
-        state: airdropState,
+        airdropState,
+        cpiAuthority: verifierSignature,
         vault,
         recipient: recipientTokenAccount,
-        verifierProgram: BASIC_VERIFIER_PK,
-        // The verifier doesnt actually verifiy, so in this case, none is
-        // needed, so any public key will do.
-        verifierState: airdropState,
         tokenProgram: TOKEN_PROGRAM_ID,
+        airdropProgram: this.airdropProgram.programId,
       }).instruction();
 
     transaction.add(basicClaimIx);
@@ -521,31 +386,37 @@ export class Airdrop {
    * Create a transaction with the instructions for setting up a password claim.
    */
   public async createClaimPasswordTransaction(
-    airdropState: PublicKey,
+    verifierState: PublicKey,
     recipient: PublicKey,
     amount: BN,
     authority: PublicKey,
     password: string,
   ): Promise<web3.Transaction> {
-    const airdropStateObj = await this.airdropProgram.account.state.fetch(airdropState, 'single');
-    const { verifierState } = airdropStateObj;
+    const verifierStateObj = await this.passwordVerifierProgram.account.verificationState.fetch(verifierState, 'single');
+    const { airdropState } = verifierStateObj;
 
     const transaction: Transaction = new Transaction();
 
+    const [verifierSignature, _signatureBump] = web3.PublicKey.findProgramAddressSync(
+      [airdropState.toBuffer()],
+      this.passwordVerifierProgram.programId,
+    );
+
     const vault = this.getVaultAddress(airdropState);
-    const passwordClaimIx: TransactionInstruction = await this.airdropProgram.methods.claim(
+    const passwordClaimIx: TransactionInstruction = await this.passwordVerifierProgram.methods.claim(
       amount,
       // This is the data for the proof.
       Buffer.from(password),
     )
       .accounts({
         authority,
-        state: airdropState,
+        verificationState: verifierState,
+        cpiAuthority: verifierSignature,
+        airdropState,
         vault,
         recipient,
-        verifierProgram: PASSWORD_VERIFIER_PK,
-        verifierState,
         tokenProgram: TOKEN_PROGRAM_ID,
+        airdropProgram: this.airdropProgram.programId,
       }).instruction();
 
     transaction.add(passwordClaimIx);
@@ -557,13 +428,15 @@ export class Airdrop {
    * Create a transaction with the instructions for setting up a merkle claim.
    */
   public async createClaimMerkleTransaction(
-    airdropState: PublicKey,
+    verifierState: PublicKey,
     recipient: PublicKey,
     amountsByRecipient: {account: PublicKey, amount: BN}[],
     authority: PublicKey,
   ): Promise<web3.Transaction> {
+    const verifierStateObj = await this.merkleVerifierProgram.account.verifierState.fetch(verifierState, 'single');
+    const { airdropState } = verifierStateObj;
+
     const airdropStateObj = await this.airdropProgram.account.state.fetch(airdropState, 'single');
-    const { verifierState } = airdropStateObj;
 
     const vaultObj = await getAccount(this.connection, airdropStateObj.vault, 'single');
     const { mint } = vaultObj;
@@ -610,31 +483,26 @@ export class Airdrop {
       verificationData = Buffer.concat([verificationData, Buffer.from(proofElem)]);
     }
 
-    const merkleClaimIx: TransactionInstruction = await this.airdropProgram.methods.claim(
+    const [verifierSignature, _signatureBump] = web3.PublicKey.findProgramAddressSync(
+      [airdropState.toBuffer()],
+      this.merkleVerifierProgram.programId,
+    );
+
+    const merkleClaimIx: TransactionInstruction = await this.merkleVerifierProgram.methods.claim(
       amount,
       verificationData,
     )
       .accounts({
         authority,
-        state: airdropState,
+        verificationState: verifierState,
+        cpiAuthority: verifierSignature,
+        airdropState,
         vault,
         recipient: recipientTokenAccount,
-        verifierProgram: MERKLE_VERIFIER_PK,
-        verifierState,
         tokenProgram: TOKEN_PROGRAM_ID,
+        receipt,
+        airdropProgram: this.airdropProgram.programId,
       })
-      .remainingAccounts([
-        {
-          pubkey: receipt,
-          isWritable: true,
-          isSigner: false,
-        },
-        {
-          pubkey: web3.SystemProgram.programId,
-          isWritable: false,
-          isSigner: false,
-        },
-      ])
       .instruction();
 
     transaction.add(merkleClaimIx);
@@ -642,83 +510,6 @@ export class Airdrop {
     return transaction;
   }
 
-  /**
-   * Create a transaction with the instructions for setting up a governance claim.
-   */
-  public async createClaimGovernanceTransaction(
-    airdropState: PublicKey,
-    recipient: PublicKey,
-    amount: BN,
-    voteRecord: PublicKey,
-    governance: PublicKey,
-    proposal: PublicKey,
-    authority: PublicKey,
-  ): Promise<web3.Transaction> {
-    const airdropStateObj = await this.airdropProgram.account.state.fetch(airdropState, 'single');
-    const { verifierState } = airdropStateObj;
-
-    const transaction: Transaction = new Transaction();
-
-    // TODO: Lookup the governance, voteRecord, and proposal for the user.
-    // Governance is on the state
-    // Search through all the proposals and all the voteRecords for one that matches
-
-    const vault = this.getVaultAddress(airdropState);
-
-    const [receipt, _receiptBump] = web3.PublicKey.findProgramAddressSync(
-      [
-        Buffer.from(utils.bytes.utf8.encode('Receipt')),
-        verifierState.toBuffer(),
-        voteRecord.toBuffer(),
-      ],
-      GOVERNANCE_VERIFIER_PK,
-    );
-
-    const governanceClaimIx = await this.airdropProgram.methods.claim(
-      amount,
-      Buffer.alloc(0),
-    )
-      .accounts({
-        authority,
-        state: airdropState,
-        vault,
-        recipient,
-        verifierProgram: GOVERNANCE_VERIFIER_PK,
-        verifierState,
-        tokenProgram: TOKEN_PROGRAM_ID,
-      })
-      .remainingAccounts([
-        {
-          pubkey: governance,
-          isWritable: true,
-          isSigner: false,
-        },
-        {
-          pubkey: proposal,
-          isWritable: true,
-          isSigner: false,
-        },
-        {
-          pubkey: voteRecord,
-          isWritable: true,
-          isSigner: false,
-        },
-        {
-          pubkey: receipt,
-          isWritable: true,
-          isSigner: false,
-        },
-        {
-          pubkey: web3.SystemProgram.programId,
-          isWritable: false,
-          isSigner: false,
-        },
-      ]).instruction();
-
-    transaction.add(governanceClaimIx);
-
-    return transaction;
-  }
-
+  // TODO: Handle proof of voting
   // TODO: Send to clockwork
 }

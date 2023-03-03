@@ -79,7 +79,7 @@ describe('airdrop', () => {
     await new Promise(f => setTimeout(f, 1_000));
 
     const passwordClaimTransaction: Transaction = await airdrop.createClaimPasswordTransaction(
-      airdropState,
+      verifierState,
       source,
       claimAmount,
       provider.publicKey,
@@ -120,10 +120,13 @@ describe('airdrop', () => {
       { account: kpThree.publicKey, amount: claimAmountThree },
     ];
 
+    const totalAmount = new anchor.BN(100 + 101 + 102);
     const { transaction: merkleConfigTransaction, airdropState, verifierState } = (
       await airdrop.createConfigMerkleTransaction(
         source,
         provider.publicKey,
+        totalAmount,
+        undefined,
         amountsByRecipient,
       ));
 
@@ -141,7 +144,7 @@ describe('airdrop', () => {
     await new Promise(f => setTimeout(f, 1_000));
 
     const merkleClaimTransaction: Transaction = await airdrop.createClaimMerkleTransaction(
-      airdropState,
+      verifierState,
       kpOne.publicKey,
       amountsByRecipient,
       provider.publicKey,
@@ -188,12 +191,13 @@ describe('airdrop', () => {
     ];
     const tree = new BalanceTree(amountsByRecipient);
 
-    const { transaction: merkleConfigTransaction, airdropState } = (
-      await airdrop.createConfigMerkleTransactionFromRoot(
+    const { transaction: merkleConfigTransaction, airdropState, verifierState } = (
+      await airdrop.createConfigMerkleTransaction(
         source,
         provider.publicKey,
         new anchor.BN(claimAmountOne.toNumber() + claimAmountTwo.toNumber() + claimAmountThree.toNumber()),
         toBytes32Array(tree.getRoot()),
+        undefined
       ));
 
     await provider.sendAndConfirm(merkleConfigTransaction, [], {skipPreflight: true});
@@ -207,7 +211,7 @@ describe('airdrop', () => {
     const recipientOneTokenAccount = await getAssociatedTokenAddress(mint, kpOne.publicKey);
 
     const merkleClaimTransaction: Transaction = await airdrop.createClaimMerkleTransaction(
-      airdropState,
+      verifierState,
       kpOne.publicKey,
       amountsByRecipient,
       provider.publicKey,
@@ -227,67 +231,4 @@ describe('airdrop', () => {
     assert(Number((await getAccount(provider.connection, source, 'single')).amount) === claimAmountTwo.toNumber() + claimAmountThree.toNumber());
   });
 
-  it('GovernanceE2E', async () => {
-    const mint = await createMint(provider!);
-
-    if (provider.publicKey === undefined) { throw new Error("Testing requires 'Provider.publicKey' to be defined."); }
-    if (provider.sendAndConfirm === undefined) { throw new Error("This function requires 'Provider.sendAndConfirm' to be implemented."); }
-    const source = await createTokenAccount(provider, mint, provider.publicKey);
-    await mintToAccount(provider, mint, source, amount, provider.publicKey);
-
-    const amountPerVoter = new anchor.BN(100);
-    const eligibilityStart = new anchor.BN(0);
-    const eligibilityEnd = new anchor.BN(2_000_000_000);
-    const governance = new PublicKey('Dg31swH4qLRzqgFsDZb3eME1QvwgAXnzA1Awtwgh3oc4');
-    const proposal = new PublicKey('6ws4bv5CefMwVXi54fMc6c7VU1RrT3QxYYeGzQMiVp4Z');
-    const voteRecord = new PublicKey('BsGL7UwBT9ojUTMgtYh6foZrbWVnJvBBpsprdjkswVA1');
-    const voter = new PublicKey('2qLWeNrV7QkHQvKBoEvXrKeLqEB2ZhscZd4ds7X2JUhn');
-
-    const { transaction: governanceConfigTransaction, airdropState, verifierState } = (
-      await airdrop.createConfigGovernanceTransaction(
-        source,
-        amountPerVoter,
-        amount,
-        provider.publicKey,
-        eligibilityStart,
-        eligibilityEnd,
-        governance,
-      ));
-
-    await provider.sendAndConfirm(governanceConfigTransaction, [], {skipPreflight: true});
-
-    // Wait for propagation.
-    await new Promise(f => setTimeout(f, 1_000));
-
-    // All of the tokens are sent from the source.
-    // Wait for finalization.
-    await new Promise(f => setTimeout(f, 1_000));
-    assert(Number((await getAccount(provider.connection, source)).amount) === 0);
-
-    const voterTokenAccount = await createTokenAccount(provider, mint, voter);
-    const governanceClaimTransaction: Transaction = await airdrop.createClaimGovernanceTransaction(
-      airdropState,
-      voterTokenAccount,
-      amountPerVoter,
-      voteRecord,
-      governance,
-      proposal,
-      provider.publicKey 
-    );
-
-    await provider.sendAndConfirm(governanceClaimTransaction, [], {skipPreflight: true});
-    // Verify that the claim tokens were received.
-    // Wait for finalization.
-    await new Promise(f => setTimeout(f, 1_000));
-    assert(Number((await getAccount(provider.connection, voterTokenAccount)).amount) === amountPerVoter.toNumber());
-
-    const governanceCloseTransaction: Transaction = (
-      await airdrop.createCloseTransaction(provider.publicKey, airdropState, source)
-    );
-    await provider.sendAndConfirm(governanceCloseTransaction);
-    // Verify that the close recovered the rest.
-    // Wait for finalization.
-    await new Promise(f => setTimeout(f, 1_000));
-    assert(Number((await getAccount(provider.connection, source)).amount) === amount.toNumber() - amountPerVoter.toNumber());
-  });
 });
