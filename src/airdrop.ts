@@ -220,7 +220,7 @@ export class Airdrop {
     )
       .accounts({
         authority,
-        verificationState: passwordVerifierState,
+        verifierState: passwordVerifierState,
         airdropState: passwordAirdropState,
         systemProgram: web3.SystemProgram.programId,
         rent: web3.SYSVAR_RENT_PUBKEY,
@@ -394,7 +394,7 @@ export class Airdrop {
     authority: PublicKey,
     password: string,
   ): Promise<web3.Transaction> {
-    const verifierStateObj = await this.passwordVerifierProgram.account.verificationState.fetch(verifierState, 'single');
+    const verifierStateObj = await this.passwordVerifierProgram.account.verifierState.fetch(verifierState, 'single');
     const { airdropState } = verifierStateObj;
 
     const transaction: Transaction = new Transaction();
@@ -413,7 +413,7 @@ export class Airdrop {
       )
         .accounts({
           authority,
-          verificationState: verifierState,
+          verifierState,
           cpiAuthority: verifierSignature,
           airdropState,
           vault,
@@ -497,7 +497,7 @@ export class Airdrop {
     )
       .accounts({
         authority,
-        verificationState: verifierState,
+        verifierState,
         cpiAuthority: verifierSignature,
         airdropState,
         vault,

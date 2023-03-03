@@ -15,7 +15,7 @@
           ]
         },
         {
-          "name": "verificationState",
+          "name": "verifierState",
           "isMut": false,
           "isSigner": false,
           "docs": [
