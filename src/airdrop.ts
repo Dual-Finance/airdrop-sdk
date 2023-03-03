@@ -48,7 +48,9 @@ export class Airdrop {
   private airdropProgram: Program;
 
   private basicVerifierProgram: Program;
+
   private passwordVerifierProgram: Program;
+
   private merkleVerifierProgram: Program;
 
   private commitment: Commitment | ConnectionConfig | undefined;
@@ -403,21 +405,22 @@ export class Airdrop {
     );
 
     const vault = this.getVaultAddress(airdropState);
-    const passwordClaimIx: TransactionInstruction = await this.passwordVerifierProgram.methods.claim(
-      amount,
-      // This is the data for the proof.
-      Buffer.from(password),
-    )
-      .accounts({
-        authority,
-        verificationState: verifierState,
-        cpiAuthority: verifierSignature,
-        airdropState,
-        vault,
-        recipient,
-        tokenProgram: TOKEN_PROGRAM_ID,
-        airdropProgram: this.airdropProgram.programId,
-      }).instruction();
+    const passwordClaimIx: TransactionInstruction = (
+      await this.passwordVerifierProgram.methods.claim(
+        amount,
+        // This is the data for the proof.
+        Buffer.from(password),
+      )
+        .accounts({
+          authority,
+          verificationState: verifierState,
+          cpiAuthority: verifierSignature,
+          airdropState,
+          vault,
+          recipient,
+          tokenProgram: TOKEN_PROGRAM_ID,
+          airdropProgram: this.airdropProgram.programId,
+        }).instruction());
 
     transaction.add(passwordClaimIx);
 
