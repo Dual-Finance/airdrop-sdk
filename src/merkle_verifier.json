@@ -3,15 +3,19 @@
   "name": "merkle_verifier",
   "instructions": [
     {
-      "name": "verify",
+      "name": "claim",
       "accounts": [
         {
           "name": "authority",
           "isMut": true,
-          "isSigner": true
+          "isSigner": true,
+          "docs": [
+            "Authority just needs to pay for the receipt rent. Does not actually have",
+            "to be the recipient."
+          ]
         },
         {
-          "name": "verificationState",
+          "name": "verifierState",
           "isMut": false,
           "isSigner": false,
           "docs": [
@@ -19,17 +23,42 @@
           ]
         },
         {
-          "name": "recipient",
-          "isMut": false,
-          "isSigner": false,
-          "docs": [
-            "Recipient owner is part of the leaf node."
-          ]
-        },
-        {
           "name": "receipt",
           "isMut": true,
           "isSigner": false
+        },
+        {
+          "name": "cpiAuthority",
+          "isMut": false,
+          "isSigner": false
+        },
+        {
+          "name": "airdropState",
+          "isMut": false,
+          "isSigner": false
+        },
+        {
+          "name": "vault",
+          "isMut": true,
+          "isSigner": false
+        },
+        {
+          "name": "recipient",
+          "isMut": true,
+          "isSigner": false
+        },
+        {
+          "name": "tokenProgram",
+          "isMut": false,
+          "isSigner": false
+        },
+        {
+          "name": "airdropProgram",
+          "isMut": false,
+          "isSigner": false,
+          "docs": [
+            "Program which actually calls for the token transfer."
+          ]
         },
         {
           "name": "systemProgram",
@@ -59,6 +88,11 @@
         {
           "name": "state",
           "isMut": true,
+          "isSigner": false
+        },
+        {
+          "name": "airdropState",
+          "isMut": false,
           "isSigner": false
         },
         {
@@ -106,6 +140,10 @@
                 32
               ]
             }
+          },
+          {
+            "name": "airdropState",
+            "type": "publicKey"
           }
         ]
       }

@@ -1,6 +1,6 @@
 {
-  "version": "0.1.0",
-  "name": "airdrop",
+  "version": "0.2.0",
+  "name": "sol_airdrop",
   "instructions": [
     {
       "name": "configure",
@@ -29,12 +29,7 @@
           "isSigner": false
         },
         {
-          "name": "verifierProgram",
-          "isMut": false,
-          "isSigner": false
-        },
-        {
-          "name": "verifierState",
+          "name": "verifierSignature",
           "isMut": false,
           "isSigner": false
         },
@@ -63,15 +58,6 @@
               32
             ]
           }
-        },
-        {
-          "name": "verifierInstructionPrefix",
-          "type": {
-            "array": [
-              "u8",
-              8
-            ]
-          }
         }
       ]
     },
@@ -80,11 +66,8 @@
       "accounts": [
         {
           "name": "authority",
-          "isMut": true,
-          "isSigner": true,
-          "docs": [
-            "Mutable because might need to pay rent in verifier."
-          ]
+          "isMut": false,
+          "isSigner": true
         },
         {
           "name": "state",
@@ -105,16 +88,6 @@
           "isSigner": false
         },
         {
-          "name": "verifierProgram",
-          "isMut": false,
-          "isSigner": false
-        },
-        {
-          "name": "verifierState",
-          "isMut": true,
-          "isSigner": false
-        },
-        {
           "name": "tokenProgram",
           "isMut": false,
           "isSigner": false
@@ -124,10 +97,6 @@
         {
           "name": "amount",
           "type": "u64"
-        },
-        {
-          "name": "verifierData",
-          "type": "bytes"
         }
       ]
     },
@@ -170,22 +139,19 @@
         "kind": "struct",
         "fields": [
           {
-            "name": "verifierProgram",
+            "name": "unusedVerifierProgram",
             "docs": [
-              "Program and config which will be passed into a CPI for verifying that",
-              "the request is valid and for how much. The config is always passed into",
-              "the verification as well as any additional accounts on claim. Only works",
-              "with 8 byte instruction prefixes. That is the number of bytes that",
-              "anchor uses."
+              "Fields were used in a previous version. Eventually will remove on next",
+              "major release."
             ],
             "type": "publicKey"
           },
           {
-            "name": "verifierState",
+            "name": "unusedVerifierState",
             "type": "publicKey"
           },
           {
-            "name": "verifierInstructionPrefix",
+            "name": "unusedVerifierInstructionPrefix",
             "type": {
               "array": [
                 "u8",
@@ -229,6 +195,13 @@
             "type": "publicKey"
           },
           {
+            "name": "verifierSignature",
+            "docs": [
+              "Verifier calls into this program with a CPI."
+            ],
+            "type": "publicKey"
+          },
+          {
             "name": "unusedPadding",
             "docs": [
               "Reserved for any future upgrades."
@@ -236,7 +209,7 @@
             "type": {
               "array": [
                 "u8",
-                64
+                32
               ]
             }
           }
@@ -247,13 +220,8 @@
   "errors": [
     {
       "code": 6000,
-      "name": "IncorrectVerifierProgram",
-      "msg": "Verifier program in claim does not match configure"
-    },
-    {
-      "code": 6001,
-      "name": "IncorrectVerifierState",
-      "msg": "Verifier state in claim does not match configure"
+      "name": "IncorrectVerifierSignature",
+      "msg": "Verifier signer did not match expected"
     }
   ],
   "metadata": {
