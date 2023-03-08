@@ -231,4 +231,56 @@ describe('airdrop', () => {
     assert(Number((await getAccount(provider.connection, source, 'single')).amount) === claimAmountTwo.toNumber() + claimAmountThree.toNumber());
   });
 
+  it('GovernanceE2E', async () => {
+    const mint = await createMint(provider!);
+
+    if (provider.publicKey === undefined) { throw new Error("Testing requires 'Provider.publicKey' to be defined."); }
+    if (provider.sendAndConfirm === undefined) { throw new Error("This function requires 'Provider.sendAndConfirm' to be implemented."); }
+    const source = await createTokenAccount(provider, mint, provider.publicKey);
+    await mintToAccount(provider, mint, source, amount, provider.publicKey);
+
+    const governance = new PublicKey('Dg31swH4qLRzqgFsDZb3eME1QvwgAXnzA1Awtwgh3oc4');
+
+    const { transaction: governanceConfigTransaction, airdropState, verifierState } = (
+      await airdrop.createConfigGovernanceTransaction(
+        source,
+        provider.publicKey,
+        amount,
+        amount,
+        new anchor.BN(0),
+        new anchor.BN(2_000_000_000),
+        governance,
+      ));
+
+    await provider.sendAndConfirm(governanceConfigTransaction);
+
+    assert(Number((await getAccount(provider.connection, source)).amount) === 0);
+
+    // Wait for propagation.
+    await new Promise(f => setTimeout(f, 1_000));
+
+    const voteRecord = new PublicKey('BsGL7UwBT9ojUTMgtYh6foZrbWVnJvBBpsprdjkswVA1');
+    const proposal = new PublicKey('6ws4bv5CefMwVXi54fMc6c7VU1RrT3QxYYeGzQMiVp4Z');
+
+    const recipient = new PublicKey('2qLWeNrV7QkHQvKBoEvXrKeLqEB2ZhscZd4ds7X2JUhn');
+    const recipientTokenAccount = await createTokenAccount(provider, mint, recipient);
+
+    const governanceClaimTransaction: Transaction = await airdrop.createClaimGovernanceTransaction(
+      verifierState,
+      recipientTokenAccount,
+      provider.publicKey,
+      voteRecord,
+      proposal,
+    );
+
+    await provider.sendAndConfirm(governanceClaimTransaction, [], { skipPreflight: true });
+
+    // Wait for propagation.
+    await new Promise(f => setTimeout(f, 1_000));
+
+    // Verify that the claim tokens were received.
+    assert(Number((await getAccount(provider.connection, recipientTokenAccount)).amount) === amount.toNumber());
+
+    // Claimed all, so no need to close.
+  });
 });

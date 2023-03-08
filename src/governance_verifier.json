@@ -1,0 +1,201 @@
+{
+  "version": "0.1.0",
+  "name": "governance_verifier",
+  "instructions": [
+    {
+      "name": "configure",
+      "docs": [
+        "This function configures what the parameters will be for the verifier.",
+        "The verifier knowing which governance and what proposal to verify."
+      ],
+      "accounts": [
+        {
+          "name": "payer",
+          "isMut": true,
+          "isSigner": true
+        },
+        {
+          "name": "state",
+          "isMut": true,
+          "isSigner": false
+        },
+        {
+          "name": "airdropState",
+          "isMut": false,
+          "isSigner": false
+        },
+        {
+          "name": "governance",
+          "isMut": false,
+          "isSigner": false
+        },
+        {
+          "name": "systemProgram",
+          "isMut": false,
+          "isSigner": false
+        }
+      ],
+      "args": [
+        {
+          "name": "seed",
+          "type": {
+            "array": [
+              "u8",
+              64
+            ]
+          }
+        },
+        {
+          "name": "amountPerVoter",
+          "type": "u64"
+        },
+        {
+          "name": "eligibilityStart",
+          "type": "i64"
+        },
+        {
+          "name": "eligibilityEnd",
+          "type": "i64"
+        }
+      ]
+    },
+    {
+      "name": "claim",
+      "accounts": [
+        {
+          "name": "authority",
+          "isMut": true,
+          "isSigner": true
+        },
+        {
+          "name": "verifierState",
+          "isMut": false,
+          "isSigner": false,
+          "docs": [
+            "Verifier state includes the eligibility period and the governance needed to verify."
+          ]
+        },
+        {
+          "name": "recipient",
+          "isMut": true,
+          "isSigner": false,
+          "docs": [
+            "Recipient owner will be matched against the VoteRecordV2"
+          ]
+        },
+        {
+          "name": "governance",
+          "isMut": false,
+          "isSigner": false
+        },
+        {
+          "name": "proposal",
+          "isMut": false,
+          "isSigner": false
+        },
+        {
+          "name": "voteRecord",
+          "isMut": false,
+          "isSigner": false
+        },
+        {
+          "name": "receipt",
+          "isMut": true,
+          "isSigner": false
+        },
+        {
+          "name": "cpiAuthority",
+          "isMut": false,
+          "isSigner": false
+        },
+        {
+          "name": "airdropState",
+          "isMut": false,
+          "isSigner": false
+        },
+        {
+          "name": "vault",
+          "isMut": true,
+          "isSigner": false
+        },
+        {
+          "name": "tokenProgram",
+          "isMut": false,
+          "isSigner": false
+        },
+        {
+          "name": "airdropProgram",
+          "isMut": false,
+          "isSigner": false,
+          "docs": [
+            "Program which actually calls for the token transfer."
+          ]
+        },
+        {
+          "name": "systemProgram",
+          "isMut": false,
+          "isSigner": false
+        }
+      ],
+      "args": []
+    }
+  ],
+  "accounts": [
+    {
+      "name": "Receipt",
+      "type": {
+        "kind": "struct",
+        "fields": [
+          {
+            "name": "voteRecord",
+            "type": "publicKey"
+          },
+          {
+            "name": "state",
+            "type": "publicKey"
+          }
+        ]
+      }
+    },
+    {
+      "name": "VerifierState",
+      "type": {
+        "kind": "struct",
+        "fields": [
+          {
+            "name": "governance",
+            "type": "publicKey"
+          },
+          {
+            "name": "eligibilityStart",
+            "type": "i64"
+          },
+          {
+            "name": "eligibilityEnd",
+            "type": "i64"
+          },
+          {
+            "name": "amountPerVoter",
+            "type": "u64"
+          },
+          {
+            "name": "airdropState",
+            "type": "publicKey"
+          },
+          {
+            "name": "unusedPadding",
+            "type": {
+              "array": [
+                "u8",
+                128
+              ]
+            }
+          }
+        ]
+      }
+    }
+  ],
+  "metadata": {
+    "address": "ATCsJvzSbHaJj3a9uKTRHSoD8ZmWPfeC3sYxzcJJHTM5"
+  }
+}
