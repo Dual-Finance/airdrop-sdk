@@ -19,7 +19,7 @@ import {
   TransactionInstruction,
 } from '@solana/web3.js';
 import { keccak_256 } from 'js-sha3';
-import solAirdropIdl from './sol_airdrop.json';
+import dualAirdropIdl from './dual_airdrop.json';
 import basicVerifierIdl from './basic_verifier.json';
 import passwordVerifierIdl from './password_verifier.json';
 import merkleVerifierIdl from './merkle_verifier.json';
@@ -80,7 +80,7 @@ export class Airdrop {
     };
 
     const provider = new AnchorProvider(this.connection, wallet, opts);
-    this.airdropProgram = new Program(solAirdropIdl as Idl, AIRDROP_PK, provider);
+    this.airdropProgram = new Program(dualAirdropIdl as Idl, AIRDROP_PK, provider);
     this.basicVerifierProgram = new Program(
       basicVerifierIdl as Idl,
       BASIC_VERIFIER_PK,
