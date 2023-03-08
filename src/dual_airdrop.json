@@ -1,6 +1,6 @@
 {
-  "version": "0.2.0",
-  "name": "sol_airdrop",
+  "version": "0.0.3",
+  "name": "dual_airdrop",
   "instructions": [
     {
       "name": "configure",
@@ -139,27 +139,6 @@
         "kind": "struct",
         "fields": [
           {
-            "name": "unusedVerifierProgram",
-            "docs": [
-              "Fields were used in a previous version. Eventually will remove on next",
-              "major release."
-            ],
-            "type": "publicKey"
-          },
-          {
-            "name": "unusedVerifierState",
-            "type": "publicKey"
-          },
-          {
-            "name": "unusedVerifierInstructionPrefix",
-            "type": {
-              "array": [
-                "u8",
-                8
-              ]
-            }
-          },
-          {
             "name": "vault",
             "docs": [
               "Tokens to be airdropped and the bump for the token account."
@@ -223,8 +202,5 @@
       "name": "IncorrectVerifierSignature",
       "msg": "Verifier signer did not match expected"
     }
-  ],
-  "metadata": {
-    "address": "tXmC2ARKqzPoX6wQAVmDj25XAQUN6JQe8iz19QR5Lo3"
-  }
+  ]
 }
