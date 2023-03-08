@@ -28,10 +28,10 @@ import { toBytes32Array } from './utils/utils';
 
 const crypto = require('crypto');
 
-export const AIRDROP_PK: PublicKey = new PublicKey('tXmC2ARKqzPoX6wQAVmDj25XAQUN6JQe8iz19QR5Lo3');
+export const AIRDROP_PK: PublicKey = new PublicKey('2fJcpdR6qzqDP7fBqvoJQ5PGYdaRFBNyUKZkZf5t12mr');
 export const BASIC_VERIFIER_PK: PublicKey = new PublicKey('FEdxZUg4BtWvMy7gy7pXEoj1isqBRYmbYdpyZfq5QZYr');
 export const PASSWORD_VERIFIER_PK: PublicKey = new PublicKey('EmsREpwoUtHnmg8aSCqmTFyfp71vnnFCdZozohcrZPeL');
-export const MERKLE_VERIFIER_PK: PublicKey = new PublicKey('4ibGmfZ6WU9qDc231sTRsTTHoDjQ1L6wxkrEAiEvKfLm');
+export const MERKLE_VERIFIER_PK: PublicKey = new PublicKey('8tBcmZAMNm11DuGAS2r6PqSA3CKt72amoz8bVj14xRiT');
 export type AirdropConfigureContext = {
   transaction: web3.Transaction,
   airdropState: PublicKey,
