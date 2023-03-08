@@ -23,6 +23,7 @@ import dualAirdropIdl from './dual_airdrop.json';
 import basicVerifierIdl from './basic_verifier.json';
 import passwordVerifierIdl from './password_verifier.json';
 import merkleVerifierIdl from './merkle_verifier.json';
+import governanceVerifierIdl from './governance_verifier.json';
 import { BalanceTree } from './utils/balance_tree';
 import { toBytes32Array } from './utils/utils';
 
@@ -32,6 +33,7 @@ export const AIRDROP_PK: PublicKey = new PublicKey('2fJcpdR6qzqDP7fBqvoJQ5PGYdaR
 export const BASIC_VERIFIER_PK: PublicKey = new PublicKey('FEdxZUg4BtWvMy7gy7pXEoj1isqBRYmbYdpyZfq5QZYr');
 export const PASSWORD_VERIFIER_PK: PublicKey = new PublicKey('EmsREpwoUtHnmg8aSCqmTFyfp71vnnFCdZozohcrZPeL');
 export const MERKLE_VERIFIER_PK: PublicKey = new PublicKey('8tBcmZAMNm11DuGAS2r6PqSA3CKt72amoz8bVj14xRiT');
+export const GOVERNANCE_VERIFIER_PK: PublicKey = new PublicKey('ATCsJvzSbHaJj3a9uKTRHSoD8ZmWPfeC3sYxzcJJHTM5');
 export type AirdropConfigureContext = {
   transaction: web3.Transaction,
   airdropState: PublicKey,
@@ -51,6 +53,8 @@ export class Airdrop {
   private passwordVerifierProgram: Program;
 
   private merkleVerifierProgram: Program;
+
+  private governanceVerifierProgram: Program;
 
   private commitment: Commitment | ConnectionConfig | undefined;
 
@@ -94,6 +98,11 @@ export class Airdrop {
     this.merkleVerifierProgram = new Program(
       merkleVerifierIdl as Idl,
       MERKLE_VERIFIER_PK,
+      provider,
+    );
+    this.governanceVerifierProgram = new Program(
+      governanceVerifierIdl as Idl,
+      GOVERNANCE_VERIFIER_PK,
       provider,
     );
   }
@@ -327,6 +336,83 @@ export class Airdrop {
   }
 
   /**
+   * Create a transaction with the instructions for setting up a governance
+   * airdrop. This includes the config as well as transferring the tokens.
+   */
+  public async createConfigGovernanceTransaction(
+    source: PublicKey,
+    authority: PublicKey,
+    totalAmount: BN,
+    amountPerVoter: BN,
+    eligibilityStart: BN,
+    eligibilityEnd: BN,
+    governance: PublicKey,
+  ): Promise<AirdropConfigureContext> {
+    const transaction: Transaction = new Transaction();
+
+    const { mint } = await getAccount(this.connection, source, 'single');
+
+    const airdropSeed = crypto.randomBytes(32);
+    const verifierSeed = crypto.randomBytes(32);
+    const [governanceAirdropState, _governanceAirdropStateBump] = (
+      web3.PublicKey.findProgramAddressSync(
+        [airdropSeed],
+        this.airdropProgram.programId,
+      ));
+    const [governanceVerifierState, _governanceVerifierBump] = (
+      web3.PublicKey.findProgramAddressSync(
+        [verifierSeed],
+        this.governanceVerifierProgram.programId,
+      ));
+    const governanceVault = this.getVaultAddress(governanceAirdropState);
+    const [verifierSignature, _signatureBump] = web3.PublicKey.findProgramAddressSync(
+      [governanceAirdropState.toBuffer()],
+      this.governanceVerifierProgram.programId,
+    );
+
+    const governanceConfigureIx = await this.airdropProgram.methods.configure(
+      airdropSeed,
+    )
+      .accounts({
+        payer: authority,
+        verifierSignature,
+        vault: governanceVault,
+        mint,
+        state: governanceAirdropState,
+        tokenProgram: TOKEN_PROGRAM_ID,
+        systemProgram: web3.SystemProgram.programId,
+        rent: web3.SYSVAR_RENT_PUBKEY,
+      })
+      .instruction();
+
+    // First instruction configures the airdrop program.
+    transaction.add(governanceConfigureIx);
+
+    const governanceInitIx = await this.governanceVerifierProgram.methods
+      .configure(verifierSeed, amountPerVoter, eligibilityStart, eligibilityEnd)
+      .accounts({
+        payer: authority,
+        state: governanceVerifierState,
+        airdropState: governanceAirdropState,
+        governance,
+        systemProgram: web3.SystemProgram.programId,
+      })
+      .instruction();
+
+    // Next instruction configures the governance verifier.
+    transaction.add(governanceInitIx);
+
+    const transferIx = createTransferInstruction(source, governanceVault, authority, totalAmount);
+    transaction.add(transferIx);
+
+    return {
+      transaction,
+      airdropState: governanceAirdropState,
+      verifierState: governanceVerifierState,
+    };
+  }
+
+  /**
    * Create a transaction for recovering airdrop tokens that were not claimed.
    */
   public async createCloseTransaction(
@@ -512,6 +598,60 @@ export class Airdrop {
     return transaction;
   }
 
-  // TODO: Handle proof of voting
+  /**
+   * Create a transaction with the instructions for setting up a password claim.
+   */
+  public async createClaimGovernanceTransaction(
+    verifierState: PublicKey,
+    recipient: PublicKey,
+    authority: PublicKey,
+    voteRecord: PublicKey,
+    proposal: PublicKey,
+  ): Promise<web3.Transaction> {
+    const verifierStateObj = await this.governanceVerifierProgram.account.verifierState.fetch(verifierState, 'single');
+    const { airdropState, governance } = verifierStateObj;
+
+    const transaction: Transaction = new Transaction();
+
+    // TODO: Look for the proposal and voteRecord on behalf of the user
+
+    const [verifierSignature, _signatureBump] = web3.PublicKey.findProgramAddressSync(
+      [airdropState.toBuffer()],
+      this.governanceVerifierProgram.programId,
+    );
+
+    const [receipt, _receiptBump] = web3.PublicKey.findProgramAddressSync(
+      [
+        Buffer.from(utils.bytes.utf8.encode('Receipt')),
+        verifierState.toBuffer(),
+        voteRecord.toBuffer(),
+      ],
+      GOVERNANCE_VERIFIER_PK,
+    );
+
+    const vault = this.getVaultAddress(airdropState);
+    const governanceClaimIx: TransactionInstruction = (
+      await this.governanceVerifierProgram.methods.claim()
+        .accounts({
+          authority,
+          verifierState,
+          recipient,
+          governance,
+          proposal,
+          voteRecord,
+          receipt,
+          cpiAuthority: verifierSignature,
+          airdropState,
+          vault,
+          tokenProgram: TOKEN_PROGRAM_ID,
+          airdropProgram: this.airdropProgram.programId,
+          systemProgram: web3.SystemProgram.programId,
+        }).instruction());
+
+    transaction.add(governanceClaimIx);
+
+    return transaction;
+  }
+
   // TODO: Send to clockwork
 }
