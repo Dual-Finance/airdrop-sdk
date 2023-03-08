@@ -599,7 +599,7 @@ export class Airdrop {
   }
 
   /**
-   * Create a transaction with the instructions for setting up a password claim.
+   * Create a transaction with the instructions for setting up a governance claim.
    */
   public async createClaimGovernanceTransaction(
     verifierState: PublicKey,
