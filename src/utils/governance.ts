@@ -1,4 +1,4 @@
-import { Connection, PublicKey } from "@solana/web3.js";
+import { Connection, PublicKey } from '@solana/web3.js';
 
 // Not include the directly package because of
 // https://github.com/solana-labs/oyster/issues/538
@@ -10,7 +10,7 @@ export async function getTokenOwnerRecordAddress(
   programId: PublicKey,
   realm: PublicKey,
   governingTokenMint: PublicKey,
-  governingTokenOwner: PublicKey
+  governingTokenOwner: PublicKey,
 ) {
   const [tokenOwnerRecordAddress] = await PublicKey.findProgramAddress(
     [
@@ -19,17 +19,21 @@ export async function getTokenOwnerRecordAddress(
       governingTokenMint.toBuffer(),
       governingTokenOwner.toBuffer(),
     ],
-    programId
+    programId,
   );
 
   return tokenOwnerRecordAddress;
 }
 
 // https://github.com/solana-labs/oyster/blob/b874111120397a4ad7c3c08798577f7a8cba46d7/packages/governance-sdk/src/governance/accounts.ts#L1127
-export async function getVoteRecordAddress(programId: PublicKey, proposal: PublicKey, tokenOwnerRecord: PublicKey) {
+export async function getVoteRecordAddress(
+  programId: PublicKey,
+  proposal: PublicKey,
+  tokenOwnerRecord: PublicKey
+) {
   const [voteRecordAddress] = await PublicKey.findProgramAddress(
     [Buffer.from(GOVERNANCE_PROGRAM_SEED), proposal.toBuffer(), tokenOwnerRecord.toBuffer()],
-    programId
+    programId,
   );
 
   return voteRecordAddress;

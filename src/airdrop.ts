@@ -26,7 +26,13 @@ import merkleVerifierIdl from './merkle_verifier.json';
 import governanceVerifierIdl from './governance_verifier.json';
 import { BalanceTree } from './utils/balance_tree';
 import { toBytes32Array } from './utils/utils';
-import { getCommunityMintFromRealm, getRealmFromGovernance, getTokenOwnerRecordAddress, getVoteRecordAddress, GOVERNANCE_PROGRAM_ID } from './utils/governance';
+import {
+  getCommunityMintFromRealm,
+  getRealmFromGovernance,
+  getTokenOwnerRecordAddress,
+  getVoteRecordAddress,
+  GOVERNANCE_PROGRAM_ID,
+} from './utils/governance';
 
 const crypto = require('crypto');
 
@@ -617,7 +623,7 @@ export class Airdrop {
 
     // TODO: Lookup the proposal on behalf of the user using a filtered
     // getProgramAccounts, similar to realms UI
-    
+
     const vaultObj = await getAccount(this.connection, airdropStateObj.vault, 'single');
     const { mint } = vaultObj;
     const recipientTokenAccount = await getAssociatedTokenAddress(mint, recipient);
@@ -638,10 +644,14 @@ export class Airdrop {
       GOVERNANCE_PROGRAM_ID,
       realm,
       communityMint,
-      recipient
+      recipient,
     );
 
-    const voteRecord = await getVoteRecordAddress(GOVERNANCE_PROGRAM_ID, proposal, tokenOwnerRecordAddress);
+    const voteRecord = await getVoteRecordAddress(
+      GOVERNANCE_PROGRAM_ID,
+      proposal,
+      tokenOwnerRecordAddress
+    );
 
     const [verifierSignature, _signatureBump] = web3.PublicKey.findProgramAddressSync(
       [airdropState.toBuffer()],
