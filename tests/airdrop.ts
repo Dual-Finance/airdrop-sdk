@@ -241,7 +241,7 @@ describe('airdrop', () => {
 
     const governance = new PublicKey('Dg31swH4qLRzqgFsDZb3eME1QvwgAXnzA1Awtwgh3oc4');
 
-    const { transaction: governanceConfigTransaction, airdropState, verifierState } = (
+    const { transaction: governanceConfigTransaction, verifierState } = (
       await airdrop.createConfigGovernanceTransaction(
         source,
         provider.publicKey,
@@ -254,20 +254,20 @@ describe('airdrop', () => {
 
     await provider.sendAndConfirm(governanceConfigTransaction);
 
-    assert(Number((await getAccount(provider.connection, source)).amount) === 0);
-
     // Wait for propagation.
     await new Promise(f => setTimeout(f, 1_000));
+
+    assert(Number((await getAccount(provider.connection, source)).amount) === 0);
 
     const voteRecord = new PublicKey('BsGL7UwBT9ojUTMgtYh6foZrbWVnJvBBpsprdjkswVA1');
     const proposal = new PublicKey('6ws4bv5CefMwVXi54fMc6c7VU1RrT3QxYYeGzQMiVp4Z');
 
     const recipient = new PublicKey('2qLWeNrV7QkHQvKBoEvXrKeLqEB2ZhscZd4ds7X2JUhn');
-    const recipientTokenAccount = await createTokenAccount(provider, mint, recipient);
+    const recipientTokenAccount = await getAssociatedTokenAddress(mint, recipient);
 
     const governanceClaimTransaction: Transaction = await airdrop.createClaimGovernanceTransaction(
       verifierState,
-      recipientTokenAccount,
+      recipient,
       provider.publicKey,
       voteRecord,
       proposal,

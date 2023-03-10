@@ -613,6 +613,22 @@ export class Airdrop {
 
     const transaction: Transaction = new Transaction();
 
+    const airdropStateObj = await this.airdropProgram.account.state.fetch(airdropState, 'single');
+
+    const vaultObj = await getAccount(this.connection, airdropStateObj.vault, 'single');
+    const { mint } = vaultObj;
+    const recipientTokenAccount = await getAssociatedTokenAddress(mint, recipient);
+
+    // Possibly initialize the recipient token account.
+    if (!(await this.connection.getAccountInfo(recipientTokenAccount, 'single'))) {
+      transaction.add(createAssociatedTokenAccountInstruction(
+        authority,
+        recipientTokenAccount,
+        recipient,
+        mint,
+      ));
+    }
+
     // TODO: Look for the proposal and voteRecord on behalf of the user
 
     const [verifierSignature, _signatureBump] = web3.PublicKey.findProgramAddressSync(
@@ -635,7 +651,7 @@ export class Airdrop {
         .accounts({
           authority,
           verifierState,
-          recipient,
+          recipient: recipientTokenAccount,
           governance,
           proposal,
           voteRecord,
