@@ -29,7 +29,7 @@ export async function getTokenOwnerRecordAddress(
 export async function getVoteRecordAddress(
   programId: PublicKey,
   proposal: PublicKey,
-  tokenOwnerRecord: PublicKey
+  tokenOwnerRecord: PublicKey,
 ) {
   const [voteRecordAddress] = await PublicKey.findProgramAddress(
     [Buffer.from(GOVERNANCE_PROGRAM_SEED), proposal.toBuffer(), tokenOwnerRecord.toBuffer()],

@@ -650,7 +650,7 @@ export class Airdrop {
     const voteRecord = await getVoteRecordAddress(
       GOVERNANCE_PROGRAM_ID,
       proposal,
-      tokenOwnerRecordAddress
+      tokenOwnerRecordAddress,
     );
 
     const [verifierSignature, _signatureBump] = web3.PublicKey.findProgramAddressSync(
