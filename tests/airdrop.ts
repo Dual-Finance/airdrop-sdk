@@ -269,7 +269,6 @@ describe('airdrop', () => {
       verifierState,
       recipient,
       provider.publicKey,
-      voteRecord,
       proposal,
     );
 
