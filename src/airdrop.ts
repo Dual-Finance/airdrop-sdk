@@ -26,6 +26,7 @@ import merkleVerifierIdl from './merkle_verifier.json';
 import governanceVerifierIdl from './governance_verifier.json';
 import { BalanceTree } from './utils/balance_tree';
 import { toBytes32Array } from './utils/utils';
+import { getCommunityMintFromRealm, getRealmFromGovernance, getTokenOwnerRecordAddress, getVoteRecordAddress, GOVERNANCE_PROGRAM_ID } from './utils/governance';
 
 const crypto = require('crypto');
 
@@ -605,7 +606,6 @@ export class Airdrop {
     verifierState: PublicKey,
     recipient: PublicKey,
     authority: PublicKey,
-    voteRecord: PublicKey,
     proposal: PublicKey,
   ): Promise<web3.Transaction> {
     const verifierStateObj = await this.governanceVerifierProgram.account.verifierState.fetch(verifierState, 'single');
@@ -615,6 +615,9 @@ export class Airdrop {
 
     const airdropStateObj = await this.airdropProgram.account.state.fetch(airdropState, 'single');
 
+    // TODO: Lookup the proposal on behalf of the user using a filtered
+    // getProgramAccounts, similar to realms UI
+    
     const vaultObj = await getAccount(this.connection, airdropStateObj.vault, 'single');
     const { mint } = vaultObj;
     const recipientTokenAccount = await getAssociatedTokenAddress(mint, recipient);
@@ -628,8 +631,17 @@ export class Airdrop {
         mint,
       ));
     }
+    const realm = await getRealmFromGovernance(this.connection, governance);
+    const communityMint = await getCommunityMintFromRealm(this.connection, realm);
 
-    // TODO: Look for the proposal and voteRecord on behalf of the user
+    const tokenOwnerRecordAddress = await getTokenOwnerRecordAddress(
+      GOVERNANCE_PROGRAM_ID,
+      realm,
+      communityMint,
+      recipient
+    );
+
+    const voteRecord = await getVoteRecordAddress(GOVERNANCE_PROGRAM_ID, proposal, tokenOwnerRecordAddress);
 
     const [verifierSignature, _signatureBump] = web3.PublicKey.findProgramAddressSync(
       [airdropState.toBuffer()],
