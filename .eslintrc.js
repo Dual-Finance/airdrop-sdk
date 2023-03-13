@@ -31,5 +31,11 @@ module.exports = {
     'class-methods-use-this': 0,
     'no-param-reassign': 0,
     'no-restricted-syntax': 0,
+    'func-names': 0,
+    'max-classes-per-file': 0,
+    'no-shadow': 0,
+    'no-await-in-loop': 0,
+    'no-continue': 0,
+    'no-use-before-define': 0,
   },
 };
