@@ -1,6 +1,6 @@
 {
   "name": "@dual-finance/airdrop",
-  "version": "0.2.4",
+  "version": "0.2.5",
   "description": "Airdrop SDK",
   "main": "lib/index.js",
   "author": "Dual Finance",
@@ -22,6 +22,7 @@
     "@coral-xyz/anchor": "^0.26.0",
     "@solana/spl-token": "^0.3.6",
     "@solana/web3.js": "^1.73.2",
+    "bs58": "^5.0.0",
     "js-sha3": "^0.8.0"
   },
   "devDependencies": {

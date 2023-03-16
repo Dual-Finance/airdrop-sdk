@@ -259,9 +259,6 @@ describe('airdrop', () => {
 
     assert(Number((await getAccount(provider.connection, source)).amount) === 0);
 
-    const voteRecord = new PublicKey('BsGL7UwBT9ojUTMgtYh6foZrbWVnJvBBpsprdjkswVA1');
-    const proposal = new PublicKey('6ws4bv5CefMwVXi54fMc6c7VU1RrT3QxYYeGzQMiVp4Z');
-
     const recipient = new PublicKey('2qLWeNrV7QkHQvKBoEvXrKeLqEB2ZhscZd4ds7X2JUhn');
     const recipientTokenAccount = await getAssociatedTokenAddress(mint, recipient);
 
@@ -269,7 +266,6 @@ describe('airdrop', () => {
       verifierState,
       recipient,
       provider.publicKey,
-      proposal,
     );
 
     await provider.sendAndConfirm(governanceClaimTransaction, [], { skipPreflight: true });

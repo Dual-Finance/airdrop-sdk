@@ -18,6 +18,7 @@ import {
   Transaction,
   TransactionInstruction,
 } from '@solana/web3.js';
+import bs58 from 'bs58';
 import { keccak_256 } from 'js-sha3';
 import dualAirdropIdl from './dual_airdrop.json';
 import basicVerifierIdl from './basic_verifier.json';
@@ -31,8 +32,13 @@ import {
   getRealmFromGovernance,
   getTokenOwnerRecordAddress,
   getVoteRecordAddress,
+  GovernanceAccountType,
   GOVERNANCE_PROGRAM_ID,
+  pubkeyFilter,
 } from './utils/governance';
+import {
+  ACCOUNT_VERSION_V2, createGovernanceAccountSchema, deserializeBorsh, Proposal,
+} from './utils/deserialize';
 
 const crypto = require('crypto');
 
@@ -612,17 +618,15 @@ export class Airdrop {
     verifierState: PublicKey,
     recipient: PublicKey,
     authority: PublicKey,
-    proposal: PublicKey,
   ): Promise<web3.Transaction> {
     const verifierStateObj = await this.governanceVerifierProgram.account.verifierState.fetch(verifierState, 'single');
-    const { airdropState, governance } = verifierStateObj;
+    const {
+      airdropState, governance, eligibilityStart, eligibilityEnd,
+    } = verifierStateObj;
 
     const transaction: Transaction = new Transaction();
 
     const airdropStateObj = await this.airdropProgram.account.state.fetch(airdropState, 'single');
-
-    // TODO: Lookup the proposal on behalf of the user using a filtered
-    // getProgramAccounts, similar to realms UI
 
     const vaultObj = await getAccount(this.connection, airdropStateObj.vault, 'single');
     const { mint } = vaultObj;
@@ -647,15 +651,66 @@ export class Airdrop {
       recipient,
     );
 
+    const proposalFilters = [
+      pubkeyFilter(1, governance)!,
+      pubkeyFilter(33, communityMint)!,
+    ];
+    const proposals = await this.connection.getProgramAccounts(GOVERNANCE_PROGRAM_ID, {
+      commitment: this.connection.commitment,
+      filters: [
+        {
+          memcmp: {
+            offset: 0,
+            bytes: bs58.encode([GovernanceAccountType.ProposalV2]),
+          },
+        },
+        ...proposalFilters.map((f) => ({
+          memcmp: { offset: f.offset, bytes: bs58.encode(f.bytes) },
+        })),
+      ],
+    });
+
+    let proposal: PublicKey | undefined;
+    for (const possibleProposal of proposals) {
+      const possibleVoteRecord = await getVoteRecordAddress(
+        GOVERNANCE_PROGRAM_ID,
+        possibleProposal.pubkey,
+        tokenOwnerRecordAddress,
+      );
+
+      // Check if it is in the range
+      const deserializedProposal = deserializeBorsh(
+        createGovernanceAccountSchema(ACCOUNT_VERSION_V2),
+        Proposal,
+        possibleProposal.account.data,
+      );
+      const { votingAt } = deserializedProposal;
+
+      if (eligibilityEnd.toNumber() < votingAt.toNumber()
+          || eligibilityStart.toNumber() > votingAt.toNumber()) {
+        continue;
+      }
+
+      // TODO: Check if it already has a receipt
+
+      if ((await this.connection.getAccountInfo(possibleVoteRecord, 'single'))) {
+        // If the voteRecord exists, use that.
+        proposal = possibleProposal.pubkey;
+        break;
+      }
+
+      // Sleep 100ms to backoff load on the RPC.
+      await new Promise((r) => setTimeout(r, 10));
+    }
+
+    if (proposal === undefined) {
+      throw new Error('Could not find VoteRecord');
+    }
+
     const voteRecord = await getVoteRecordAddress(
       GOVERNANCE_PROGRAM_ID,
       proposal,
       tokenOwnerRecordAddress,
-    );
-
-    const [verifierSignature, _signatureBump] = web3.PublicKey.findProgramAddressSync(
-      [airdropState.toBuffer()],
-      this.governanceVerifierProgram.programId,
     );
 
     const [receipt, _receiptBump] = web3.PublicKey.findProgramAddressSync(
@@ -665,6 +720,11 @@ export class Airdrop {
         voteRecord.toBuffer(),
       ],
       GOVERNANCE_VERIFIER_PK,
+    );
+
+    const [verifierSignature, _signatureBump] = web3.PublicKey.findProgramAddressSync(
+      [airdropState.toBuffer()],
+      this.governanceVerifierProgram.programId,
     );
 
     const vault = this.getVaultAddress(airdropState);
