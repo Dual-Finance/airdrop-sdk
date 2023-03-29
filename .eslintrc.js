@@ -37,5 +37,10 @@ module.exports = {
     'no-await-in-loop': 0,
     'no-continue': 0,
     'no-use-before-define': 0,
+    'lines-between-class-members': [
+      'error',
+      'always',
+      { 'exceptAfterSingleLine': true },
+    ]
   },
 };
