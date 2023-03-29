@@ -20,6 +20,7 @@ import {
 } from '@solana/web3.js';
 import bs58 from 'bs58';
 import { keccak_256 } from 'js-sha3';
+import crypto from 'crypto';
 import dualAirdropIdl from './dual_airdrop.json';
 import basicVerifierIdl from './basic_verifier.json';
 import passwordVerifierIdl from './password_verifier.json';
@@ -39,8 +40,6 @@ import {
 import {
   ACCOUNT_VERSION_V2, createGovernanceAccountSchema, deserializeBorsh, Proposal,
 } from './utils/deserialize';
-
-import crypto from 'crypto';
 
 export const AIRDROP_PK: PublicKey = new PublicKey('2fJcpdR6qzqDP7fBqvoJQ5PGYdaRFBNyUKZkZf5t12mr');
 export const BASIC_VERIFIER_PK: PublicKey = new PublicKey('FEdxZUg4BtWvMy7gy7pXEoj1isqBRYmbYdpyZfq5QZYr');
