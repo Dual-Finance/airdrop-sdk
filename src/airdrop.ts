@@ -40,7 +40,7 @@ import {
   ACCOUNT_VERSION_V2, createGovernanceAccountSchema, deserializeBorsh, Proposal,
 } from './utils/deserialize';
 
-const crypto = require('crypto');
+import crypto from 'crypto';
 
 export const AIRDROP_PK: PublicKey = new PublicKey('2fJcpdR6qzqDP7fBqvoJQ5PGYdaRFBNyUKZkZf5t12mr');
 export const BASIC_VERIFIER_PK: PublicKey = new PublicKey('FEdxZUg4BtWvMy7gy7pXEoj1isqBRYmbYdpyZfq5QZYr');
@@ -58,17 +58,11 @@ export type AirdropConfigureContext = {
  */
 export class Airdrop {
   private connection: Connection;
-
   private airdropProgram: Program;
-
   private basicVerifierProgram: Program;
-
   private passwordVerifierProgram: Program;
-
   private merkleVerifierProgram: Program;
-
   private governanceVerifierProgram: Program;
-
   private commitment: Commitment | ConnectionConfig | undefined;
 
   /**
