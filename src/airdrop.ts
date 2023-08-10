@@ -1,3 +1,4 @@
+import crypto from 'crypto';
 import {
   AnchorProvider, Idl, Program, Wallet, web3, utils, BN,
 } from '@coral-xyz/anchor';
@@ -20,7 +21,6 @@ import {
 } from '@solana/web3.js';
 import bs58 from 'bs58';
 import { keccak_256 } from 'js-sha3';
-import crypto from 'crypto';
 import dualAirdropIdl from './dual_airdrop.json';
 import basicVerifierIdl from './basic_verifier.json';
 import passwordVerifierIdl from './password_verifier.json';
