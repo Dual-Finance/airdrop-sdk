@@ -3,6 +3,8 @@ import {
   AnchorProvider, Idl, Program, Wallet, web3, utils, BN,
 } from '@coral-xyz/anchor';
 import {
+  Account,
+  createAssociatedTokenAccountIdempotentInstruction,
   createAssociatedTokenAccountInstruction,
   createTransferInstruction,
   getAccount,
@@ -26,6 +28,7 @@ import basicVerifierIdl from './basic_verifier.json';
 import passwordVerifierIdl from './password_verifier.json';
 import merkleVerifierIdl from './merkle_verifier.json';
 import governanceVerifierIdl from './governance_verifier.json';
+import orcaVerifierIdl from './orca_verifier.json';
 import { BalanceTree } from './utils/balance_tree';
 import { toBytes32Array } from './utils/utils';
 import {
@@ -46,6 +49,7 @@ export const BASIC_VERIFIER_PK: PublicKey = new PublicKey('FEdxZUg4BtWvMy7gy7pXE
 export const PASSWORD_VERIFIER_PK: PublicKey = new PublicKey('EmsREpwoUtHnmg8aSCqmTFyfp71vnnFCdZozohcrZPeL');
 export const MERKLE_VERIFIER_PK: PublicKey = new PublicKey('8tBcmZAMNm11DuGAS2r6PqSA3CKt72amoz8bVj14xRiT');
 export const GOVERNANCE_VERIFIER_PK: PublicKey = new PublicKey('ATCsJvzSbHaJj3a9uKTRHSoD8ZmWPfeC3sYxzcJJHTM5');
+export const ORCA_VERIFIER_PK: PublicKey = new PublicKey('9X1uDdEsKpc7s1WdZzmfzLG5nhnf2KuE5WpaDaGjGyiG');
 export type AirdropConfigureContext = {
   transaction: web3.Transaction,
   airdropState: PublicKey,
@@ -62,6 +66,7 @@ export class Airdrop {
   private passwordVerifierProgram: Program;
   private merkleVerifierProgram: Program;
   private governanceVerifierProgram: Program;
+  private orcaVerifierProgram: Program;
   private commitment: Commitment | ConnectionConfig | undefined;
 
   /**
@@ -109,6 +114,11 @@ export class Airdrop {
     this.governanceVerifierProgram = new Program(
       governanceVerifierIdl as Idl,
       GOVERNANCE_VERIFIER_PK,
+      provider,
+    );
+    this.orcaVerifierProgram = new Program(
+      orcaVerifierIdl as Idl,
+      ORCA_VERIFIER_PK,
       provider,
     );
   }
@@ -415,6 +425,81 @@ export class Airdrop {
       transaction,
       airdropState: governanceAirdropState,
       verifierState: governanceVerifierState,
+    };
+  }
+
+  /**
+   * Create a transaction with the instructions for setting up an orca
+   * airdrop. This includes the config as well as transferring the tokens.
+   */
+  public async createConfigOrcaTransaction(
+    source: PublicKey,
+    authority: PublicKey,
+    totalAmount: BN,
+    pool: PublicKey,
+    rewardIndex: number,
+  ): Promise<AirdropConfigureContext> {
+    const transaction: Transaction = new Transaction();
+
+    const { mint } = await getAccount(this.connection, source, 'single');
+
+    const airdropSeed = crypto.randomBytes(32);
+    const verifierSeed = crypto.randomBytes(32);
+    const [orcaAirdropState, _orcaAirdropStateBump] = (
+      web3.PublicKey.findProgramAddressSync(
+        [airdropSeed],
+        this.airdropProgram.programId,
+      ));
+    const [orcaVerifierState, _orcaVerifierBump] = (
+      web3.PublicKey.findProgramAddressSync(
+        [verifierSeed],
+        this.orcaVerifierProgram.programId,
+      ));
+    const vault = this.getVaultAddress(orcaAirdropState);
+    const [verifierSignature, _signatureBump] = web3.PublicKey.findProgramAddressSync(
+      [orcaAirdropState.toBuffer()],
+      this.orcaVerifierProgram.programId,
+    );
+
+    const orcaConfigureIx = await this.airdropProgram.methods.configure(
+      airdropSeed,
+    )
+      .accounts({
+        payer: authority,
+        verifierSignature,
+        vault: vault,
+        mint,
+        state: orcaAirdropState,
+        tokenProgram: TOKEN_PROGRAM_ID,
+        systemProgram: web3.SystemProgram.programId,
+        rent: web3.SYSVAR_RENT_PUBKEY,
+      })
+      .instruction();
+
+    // First instruction configures the airdrop program.
+    transaction.add(orcaConfigureIx);
+
+    const orcaInitIx = await this.orcaVerifierProgram.methods
+      .configure(verifierSeed, rewardIndex)
+      .accounts({
+        payer: authority,
+        state: orcaVerifierState,
+        airdropState: orcaAirdropState,
+        pool,
+        systemProgram: web3.SystemProgram.programId,
+      })
+      .instruction();
+
+    // Next instruction configures the orca verifier.
+    transaction.add(orcaInitIx);
+
+    const transferIx = createTransferInstruction(source, vault, authority, totalAmount);
+    transaction.add(transferIx);
+
+    return {
+      transaction,
+      airdropState: orcaAirdropState,
+      verifierState: orcaVerifierState,
     };
   }
 
@@ -740,6 +825,82 @@ export class Airdrop {
         }).instruction());
 
     transaction.add(governanceClaimIx);
+
+    return transaction;
+  }
+
+
+  /**
+   * Create a transaction with the instructions for setting up an orca claim.
+   */
+  public async createClaimOrcaTransaction(
+    verifierState: PublicKey,
+    recipient: PublicKey,
+    position: PublicKey,
+    positionTokenAccount: PublicKey,
+    authority: PublicKey,
+  ): Promise<web3.Transaction> {
+    const verifierStateObj = await this.orcaVerifierProgram.account.verifierState.fetch(verifierState);
+    const { airdropState } = verifierStateObj;
+
+    const transaction: Transaction = new Transaction();
+
+    const airdropStateObj = await this.airdropProgram.account.state.fetch(airdropState);
+
+    const vaultObj: Account = await getAccount(this.connection, airdropStateObj.vault);
+    const { mint } = vaultObj;
+    const recipientTokenAccount = await getAssociatedTokenAddress(mint, recipient);
+    transaction.add(createAssociatedTokenAccountIdempotentInstruction(
+      authority,
+      recipientTokenAccount,
+      recipient,
+      mint,
+    ));
+
+    const [receipt, _receiptBump] = web3.PublicKey.findProgramAddressSync(
+      [
+        Buffer.from(utils.bytes.utf8.encode('Receipt')),
+        verifierState.toBuffer(),
+        position.toBuffer(),
+      ],
+      ORCA_VERIFIER_PK,
+    );
+    // Init receipt if needed
+    if (!await getAccount(this.connection, airdropStateObj.vault, 'single')) {
+      const initReceiptIx = await this.orcaVerifierProgram.methods.initReceipt()
+      .accounts({
+        authority,
+        verifierState,
+        position,
+        receipt,
+        systemProgram: web3.SystemProgram.programId,
+      }).instruction();
+      transaction.add(initReceiptIx);
+    }
+
+    const [verifierSignature, _signatureBump] = web3.PublicKey.findProgramAddressSync(
+      [airdropState.toBuffer()],
+      this.orcaVerifierProgram.programId,
+    );
+
+    const vault = this.getVaultAddress(airdropState);
+    const orcaClaimIx: TransactionInstruction = (
+      await this.orcaVerifierProgram.methods.claim()
+        .accounts({
+          authority,
+          verifierState,
+          recipient: recipientTokenAccount,
+          vault,
+          tokenProgram: TOKEN_PROGRAM_ID,
+          airdropProgram: this.airdropProgram.programId,
+          position,
+          positionTokenAccount,
+          receipt,
+          cpiAuthority: verifierSignature,
+          airdropState,
+        }).instruction());
+
+    transaction.add(orcaClaimIx);
 
     return transaction;
   }
