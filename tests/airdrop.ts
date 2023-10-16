@@ -278,4 +278,6 @@ describe('airdrop', () => {
 
     // Claimed all, so no need to close.
   });
+
+  // TODO: Test orca e2e
 });
