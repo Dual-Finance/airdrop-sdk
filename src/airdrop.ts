@@ -467,7 +467,7 @@ export class Airdrop {
       .accounts({
         payer: authority,
         verifierSignature,
-        vault: vault,
+        vault,
         mint,
         state: orcaAirdropState,
         tokenProgram: TOKEN_PROGRAM_ID,
@@ -829,7 +829,6 @@ export class Airdrop {
     return transaction;
   }
 
-
   /**
    * Create a transaction with the instructions for setting up an orca claim.
    */
@@ -840,7 +839,9 @@ export class Airdrop {
     positionTokenAccount: PublicKey,
     authority: PublicKey,
   ): Promise<web3.Transaction> {
-    const verifierStateObj = await this.orcaVerifierProgram.account.verifierState.fetch(verifierState);
+    const verifierStateObj = await this.orcaVerifierProgram.account.verifierState.fetch(
+      verifierState,
+    );
     const { airdropState } = verifierStateObj;
 
     const transaction: Transaction = new Transaction();
@@ -868,13 +869,13 @@ export class Airdrop {
     // Init receipt if needed
     if (!await getAccount(this.connection, airdropStateObj.vault, 'single')) {
       const initReceiptIx = await this.orcaVerifierProgram.methods.initReceipt()
-      .accounts({
-        authority,
-        verifierState,
-        position,
-        receipt,
-        systemProgram: web3.SystemProgram.programId,
-      }).instruction();
+        .accounts({
+          authority,
+          verifierState,
+          position,
+          receipt,
+          systemProgram: web3.SystemProgram.programId,
+        }).instruction();
       transaction.add(initReceiptIx);
     }
 
