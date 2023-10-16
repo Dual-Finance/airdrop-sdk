@@ -441,7 +441,7 @@ export class Airdrop {
   ): Promise<AirdropConfigureContext> {
     const transaction: Transaction = new Transaction();
 
-    const { mint } = await getAccount(this.connection, source, 'single');
+    const { mint } = await getAccount(this.connection, source);
 
     const airdropSeed = crypto.randomBytes(32);
     const verifierSeed = crypto.randomBytes(32);
