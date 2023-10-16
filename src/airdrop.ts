@@ -482,7 +482,7 @@ export class Airdrop {
     const orcaInitIx = await this.orcaVerifierProgram.methods
       .init(verifierSeed, rewardIndex)
       .accounts({
-        payer: authority,
+        authority,
         state: orcaVerifierState,
         airdropState: orcaAirdropState,
         pool,
