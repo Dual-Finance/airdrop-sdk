@@ -480,7 +480,7 @@ export class Airdrop {
     transaction.add(orcaConfigureIx);
 
     const orcaInitIx = await this.orcaVerifierProgram.methods
-      .configure(verifierSeed, rewardIndex)
+      .init(verifierSeed, rewardIndex)
       .accounts({
         payer: authority,
         state: orcaVerifierState,
