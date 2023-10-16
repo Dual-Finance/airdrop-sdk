@@ -867,7 +867,7 @@ export class Airdrop {
       ORCA_VERIFIER_PK,
     );
     // Init receipt if needed
-    if (!await getAccount(this.connection, receipt)) {
+    if (!await this.connection.getAccountInfo(receipt)) {
       const initReceiptIx = await this.orcaVerifierProgram.methods.initReceipt()
         .accounts({
           authority,
