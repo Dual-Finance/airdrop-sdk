@@ -134,6 +134,13 @@ export class Airdrop {
     return vault;
   }
 
+  async fetchOrcaVerifierState(verifierState: PublicKey) {
+    const verifierStateObj = await this.orcaVerifierProgram.account.verifierState.fetch(
+      verifierState,
+    );
+    return verifierStateObj;
+  }
+
   /**
    * Create a transaction with the instructions for setting up a basic airdrop.
    * This includes the config as well as transferring the tokens.
