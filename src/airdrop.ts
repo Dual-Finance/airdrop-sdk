@@ -171,6 +171,7 @@ export class Airdrop {
     )
       .accounts({
         payer: authority,
+        closeAuthority: authority,
         verifierSignature,
         vault: basicVault,
         mint,
@@ -232,6 +233,7 @@ export class Airdrop {
     )
       .accounts({
         payer: authority,
+        closeAuthority: authority,
         state: passwordAirdropState,
         vault: passwordVault,
         mint,
@@ -282,6 +284,7 @@ export class Airdrop {
     totalAmount: BN,
     merkleRoot?: number[],
     amountsByRecipient?: {account: PublicKey, amount: BN}[],
+    closeAuthority?: PublicKey,
   ): Promise<AirdropConfigureContext> {
     const transaction: Transaction = new Transaction();
 
@@ -301,7 +304,7 @@ export class Airdrop {
       ));
     const merkleVault = this.getVaultAddress(merkleAirdropState);
     const [verifierSignature, _signatureBump] = web3.PublicKey.findProgramAddressSync(
-      [merkleAirdropState.toBuffer()],
+      [merkleVerifierState.toBuffer()],
       this.merkleVerifierProgram.programId,
     );
 
@@ -310,6 +313,7 @@ export class Airdrop {
     )
       .accounts({
         payer: authority,
+        closeAuthority: closeAuthority ?? authority,
         verifierSignature,
         vault: merkleVault,
         mint,
@@ -398,6 +402,7 @@ export class Airdrop {
     )
       .accounts({
         payer: authority,
+        closeAuthority: authority,
         verifierSignature,
         vault: governanceVault,
         mint,
