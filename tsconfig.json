@@ -21,8 +21,7 @@
         "esModuleInterop": true,
         "skipLibCheck": true,
         "forceConsistentCasingInFileNames": true,
-        "resolveJsonModule": true,
-        "useUnknownInCatchVariables": true
+        "resolveJsonModule": true
     },
     "$schema": "https://json.schemastore.org/tsconfig",
     "display": "Recommended"
