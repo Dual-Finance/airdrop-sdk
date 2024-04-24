@@ -675,7 +675,7 @@ export class Airdrop {
     }
 
     const [verifierSignature, _signatureBump] = web3.PublicKey.findProgramAddressSync(
-      [airdropState.toBuffer()],
+      [verifierState.toBuffer()],
       this.merkleVerifierProgram.programId,
     );
 
