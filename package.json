@@ -37,7 +37,7 @@
     "eslint-plugin-import": "^2.25.2",
     "mocha": "^10.2.0",
     "prettier": "^2.6.2",
-    "rimraf": "^3.0.2",
+    "rimraf": "^5.0.5",
     "ts-mocha": "^10.0.0",
     "typescript": "4.3.5"
   }
